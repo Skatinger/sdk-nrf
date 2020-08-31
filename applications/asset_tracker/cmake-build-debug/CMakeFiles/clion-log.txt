@@ -1,0 +1,15 @@
+/snap/clion/124/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" /home/skatinger/Documents/bachelor_thesis/second_try/ncs/nrf/applications/asset_tracker
+Including boilerplate (Zephyr workspace): /home/skatinger/Documents/bachelor_thesis/second_try/ncs/zephyr/cmake/app/boilerplate.cmake
+-- Application: /home/skatinger/Documents/bachelor_thesis/second_try/ncs/nrf/applications/asset_tracker
+-- Zephyr version: 2.3.0-rc1 (/home/skatinger/Documents/bachelor_thesis/second_try/ncs/zephyr)
+-- Found Python3: /usr/bin/python3.6 (found suitable exact version "3.6.9") found components: Interpreter 
+CMake Error at /home/skatinger/Documents/bachelor_thesis/second_try/ncs/zephyr/cmake/app/boilerplate.cmake:192 (message):
+  BOARD is not being defined on the CMake command-line in the environment or
+  by the app.
+Call Stack (most recent call first):
+  /home/skatinger/Documents/bachelor_thesis/second_try/ncs/zephyr/share/zephyr-package/cmake/ZephyrConfig.cmake:24 (include)
+  /home/skatinger/Documents/bachelor_thesis/second_try/ncs/zephyr/share/zephyr-package/cmake/ZephyrConfig.cmake:91 (include_boilerplate)
+  CMakeLists.txt:16 (find_package)
+
+
+-- Configuring incomplete, errors occurred!
