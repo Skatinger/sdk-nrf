@@ -100,12 +100,12 @@ struct coap_cloud_topic_data {
 /** @brief Structure used to declare a list of application specific topics
  *         passed in by the application.
  */
-struct coap_cloud_app_topic_data {
-    /** List of application specific topics. */
-     struct mqtt_topic list[CONFIG_COAP_CLOUD_APP_SUBSCRIPTION_LIST_COUNT];
-    /** Number of entries in topic list. */
-    size_t list_count;
-};
+// struct coap_cloud_app_topic_data {
+//     /** List of application specific topics. */
+//      // struct coap_topic list[5];
+//     /** Number of entries in topic list. */
+//     size_t list_count;
+// };
 
 /** @brief AWS IoT transmission data. */
 struct coap_cloud_data {
@@ -193,7 +193,7 @@ int coap_cloud_disconnect(void);
  *  @return 0 If successful.
  *            Otherwise, a (negative) error code is returned.
  */
-int coap_cloud_send(const struct coap_cloud_data *const tx_data);
+int coap_cloud_send(void); // const struct coap_cloud_data); // TODO add data *const tx_data);
 
 /** @brief Get data from AWS IoT broker
  *
