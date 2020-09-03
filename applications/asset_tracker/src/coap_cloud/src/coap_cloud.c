@@ -11,12 +11,12 @@
 
 #include <logging/log.h>
 
-LOG_MODULE_REGISTER(coap_cloud, CONFIG_MQTT_CLOUD_LOG_LEVEL);
+LOG_MODULE_REGISTER(coap_cloud, CONFIG_COAP_CLOUD_LOG_LEVEL);
 
-BUILD_ASSERT(sizeof(CONFIG_MQTT_CLOUD_BROKER_HOST_NAME) > 1,
+BUILD_ASSERT(sizeof(CONFIG_COAP_CLOUD_BROKER_HOST_NAME) > 1,
 		 "AWS IoT hostname not set");
 
-#if defined(CONFIG_MQTT_CLOUD_IPV6)
+#if defined(CONFIG_COAP_CLOUD_IPV6)
 #define AWS_AF_FAMILY AF_INET6
 #else
 #define AWS_AF_FAMILY AF_INET
@@ -26,7 +26,7 @@ BUILD_ASSERT(sizeof(CONFIG_MQTT_CLOUD_BROKER_HOST_NAME) > 1,
 #define AWS_TOPIC_LEN (sizeof(AWS_TOPIC) - 1)
 
 #define AWS_CLIENT_ID_PREFIX "%s"
-#define AWS_CLIENT_ID_LEN_MAX CONFIG_MQTT_CLOUD_CLIENT_ID_MAX_LEN
+#define AWS_CLIENT_ID_LEN_MAX CONFIG_COAP_CLOUD_CLIENT_ID_MAX_LEN
 
 #define GET_TOPIC AWS_TOPIC "%s/shadow/get"
 #define GET_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 11)
@@ -42,43 +42,43 @@ static char get_topic[GET_TOPIC_LEN + 1];
 static char update_topic[UPDATE_TOPIC_LEN + 1];
 static char delete_topic[DELETE_TOPIC_LEN + 1];
 
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_UPDATE_ACCEPTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_ACCEPTED_SUBSCRIBE)
 #define UPDATE_ACCEPTED_TOPIC AWS_TOPIC "%s/shadow/update/accepted"
 #define UPDATE_ACCEPTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 23)
 static char update_accepted_topic[UPDATE_ACCEPTED_TOPIC_LEN + 1];
 #endif
 
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_UPDATE_REJECTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_REJECTED_SUBSCRIBE)
 #define UPDATE_REJECTED_TOPIC AWS_TOPIC "%s/shadow/update/rejected"
 #define UPDATE_REJECTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 23)
 static char update_rejected_topic[UPDATE_REJECTED_TOPIC_LEN + 1];
 #endif
 
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_UPDATE_DELTA_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_DELTA_SUBSCRIBE)
 #define UPDATE_DELTA_TOPIC AWS_TOPIC "%s/shadow/update/delta"
 #define UPDATE_DELTA_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 20)
 static char update_delta_topic[UPDATE_DELTA_TOPIC_LEN + 1];
 #endif
 
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_GET_ACCEPTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_GET_ACCEPTED_SUBSCRIBE)
 #define GET_ACCEPTED_TOPIC AWS_TOPIC "%s/shadow/get/accepted"
 #define GET_ACCEPTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 20)
 static char get_accepted_topic[GET_ACCEPTED_TOPIC_LEN + 1];
 #endif
 
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_GET_REJECTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_GET_REJECTED_SUBSCRIBE)
 #define GET_REJECTED_TOPIC AWS_TOPIC "%s/shadow/get/rejected"
 #define GET_REJECTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 20)
 static char get_rejected_topic[GET_REJECTED_TOPIC_LEN + 1];
 #endif
 
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_DELETE_ACCEPTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_DELETE_ACCEPTED_SUBSCRIBE)
 #define DELETE_ACCEPTED_TOPIC AWS_TOPIC "%s/shadow/delete/accepted"
 #define DELETE_ACCEPTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 23)
 static char delete_accepted_topic[DELETE_ACCEPTED_TOPIC_LEN + 1];
 #endif
 
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_DELETE_REJECTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_DELETE_REJECTED_SUBSCRIBE)
 #define DELETE_REJECTED_TOPIC AWS_TOPIC "%s/shadow/delete/rejected"
 #define DELETE_REJECTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 23)
 static char delete_rejected_topic[DELETE_REJECTED_TOPIC_LEN + 1];
@@ -86,20 +86,20 @@ static char delete_rejected_topic[DELETE_REJECTED_TOPIC_LEN + 1];
 
 static struct mqtt_cloud_app_topic_data app_topic_data;
 
-static char rx_buffer[CONFIG_MQTT_CLOUD_MQTT_RX_TX_BUFFER_LEN];
-static char tx_buffer[CONFIG_MQTT_CLOUD_MQTT_RX_TX_BUFFER_LEN];
-static char payload_buf[CONFIG_MQTT_CLOUD_MQTT_PAYLOAD_BUFFER_LEN];
+static char rx_buffer[CONFIG_COAP_CLOUD_COAP_RX_TX_BUFFER_LEN];
+static char tx_buffer[CONFIG_COAP_CLOUD_COAP_RX_TX_BUFFER_LEN];
+static char payload_buf[CONFIG_COAP_CLOUD_COAP_PAYLOAD_BUFFER_LEN];
 
 static struct mqtt_client client;
 static struct sockaddr_storage broker;
 
 #if defined(CONFIG_CLOUD_API)
-static struct cloud_backend *mqtt_cloud_backend;
+static struct cloud_backend *coap_cloud_backend;
 #else
-static mqtt_cloud_evt_handler_t module_evt_handler;
+static coap_cloud_evt_handler_t module_evt_handler;
 #endif
 
-#define MQTT_CLOUD_POLL_TIMEOUT_MS 500
+#define COAP_CLOUD_POLL_TIMEOUT_MS 500
 
 static atomic_t disconnect_requested;
 static atomic_t connection_poll_active;
@@ -107,7 +107,7 @@ static atomic_t connection_poll_active;
 static K_SEM_DEFINE(connection_poll_sem, 0, 1);
 
 #if !defined(CONFIG_CLOUD_API)
-static void mqtt_cloud_notify_event(const struct mqtt_cloud_evt *evt)
+static void coap_cloud_notify_event(const struct coap_cloud_evt *evt)
 {
 	if ((module_evt_handler != NULL) && (evt != NULL)) {
 		module_evt_handler(evt);
@@ -118,7 +118,7 @@ static void mqtt_cloud_notify_event(const struct mqtt_cloud_evt *evt)
 static int mqtt_cloud_topics_populate(char *const id, size_t id_len)
 {
 	int err;
-#if defined(CONFIG_MQTT_CLOUD_CLIENT_ID_APP)
+#if defined(CONFIG_COAP_CLOUD_CLIENT_ID_APP)
 	err = snprintf(client_id_buf, sizeof(client_id_buf),
 		       AWS_CLIENT_ID_PREFIX, id);
 	if (err >= AWS_CLIENT_ID_LEN_MAX) {
@@ -126,7 +126,7 @@ static int mqtt_cloud_topics_populate(char *const id, size_t id_len)
 	}
 #else
 	err = snprintf(client_id_buf, sizeof(client_id_buf),
-		       AWS_CLIENT_ID_PREFIX, CONFIG_MQTT_CLOUD_CLIENT_ID_STATIC);
+		       AWS_CLIENT_ID_PREFIX, CONFIG_COAP_CLOUD_CLIENT_ID_STATIC);
 	if (err >= AWS_CLIENT_ID_LEN_MAX) {
 		return -ENOMEM;
 	}
@@ -150,49 +150,49 @@ static int mqtt_cloud_topics_populate(char *const id, size_t id_len)
 		return -ENOMEM;
 	}
 
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_GET_ACCEPTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_GET_ACCEPTED_SUBSCRIBE)
 	err = snprintf(get_accepted_topic, sizeof(get_accepted_topic),
 		       GET_ACCEPTED_TOPIC, client_id_buf);
 	if (err >= GET_ACCEPTED_TOPIC_LEN) {
 		return -ENOMEM;
 	}
 #endif
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_GET_REJECTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_GET_REJECTED_SUBSCRIBE)
 	err = snprintf(get_rejected_topic, sizeof(get_rejected_topic),
 		       GET_REJECTED_TOPIC, client_id_buf);
 	if (err >= GET_REJECTED_TOPIC_LEN) {
 		return -ENOMEM;
 	}
 #endif
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_UPDATE_ACCEPTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_ACCEPTED_SUBSCRIBE)
 	err = snprintf(update_accepted_topic, sizeof(update_accepted_topic),
 		       UPDATE_ACCEPTED_TOPIC, client_id_buf);
 	if (err >= UPDATE_ACCEPTED_TOPIC_LEN) {
 		return -ENOMEM;
 	}
 #endif
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_UPDATE_REJECTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_REJECTED_SUBSCRIBE)
 	err = snprintf(update_rejected_topic, sizeof(update_rejected_topic),
 		       UPDATE_REJECTED_TOPIC, client_id_buf);
 	if (err >= UPDATE_REJECTED_TOPIC_LEN) {
 		return -ENOMEM;
 	}
 #endif
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_UPDATE_DELTA_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_DELTA_SUBSCRIBE)
 	err = snprintf(update_delta_topic, sizeof(update_delta_topic),
 		       UPDATE_DELTA_TOPIC, client_id_buf);
 	if (err >= UPDATE_DELTA_TOPIC_LEN) {
 		return -ENOMEM;
 	}
 #endif
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_DELETE_ACCEPTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_DELETE_ACCEPTED_SUBSCRIBE)
 	err = snprintf(delete_accepted_topic, sizeof(delete_accepted_topic),
 		       DELETE_ACCEPTED_TOPIC, client_id_buf);
 	if (err >= DELETE_ACCEPTED_TOPIC_LEN) {
 		return -ENOMEM;
 	}
 #endif
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_DELETE_REJECTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_DELETE_REJECTED_SUBSCRIBE)
 	err = snprintf(delete_rejected_topic, sizeof(delete_rejected_topic),
 		       DELETE_REJECTED_TOPIC, client_id_buf);
 	if (err >= DELETE_REJECTED_TOPIC_LEN) {
@@ -206,10 +206,10 @@ static int mqtt_cloud_topics_populate(char *const id, size_t id_len)
 static void aws_fota_cb_handler(struct aws_fota_event *fota_evt)
 {
 #if defined(CONFIG_CLOUD_API)
-	struct cloud_backend_config *config = mqtt_cloud_backend->config;
+	struct cloud_backend_config *config = coap_cloud_backend->config;
 	struct cloud_event cloud_evt = { 0 };
 #else
-	struct mqtt_cloud_evt mqtt_cloud_evt = { 0 };
+	struct coap_cloud_evt coap_cloud_evt = { 0 };
 #endif
 
 	if (fota_evt == NULL) {
@@ -221,44 +221,44 @@ static void aws_fota_cb_handler(struct aws_fota_event *fota_evt)
 		LOG_DBG("AWS_FOTA_EVT_START");
 #if defined(CONFIG_CLOUD_API)
 		cloud_evt.type = CLOUD_EVT_FOTA_START;
-		cloud_notify_event(mqtt_cloud_backend, &cloud_evt,
+		cloud_notify_event(coap_cloud_backend, &cloud_evt,
 				   config->user_data);
 #else
-		mqtt_cloud_evt.type = MQTT_CLOUD_EVT_FOTA_START;
-		mqtt_cloud_notify_event(&mqtt_cloud_evt);
+		coap_cloud_evt.type = COAP_CLOUD_EVT_FOTA_START;
+		coap_cloud_notify_event(&coap_cloud_evt);
 #endif
 		break;
 	case AWS_FOTA_EVT_DONE:
 		LOG_DBG("AWS_FOTA_EVT_DONE");
 #if defined(CONFIG_CLOUD_API)
 		cloud_evt.type = CLOUD_EVT_FOTA_DONE;
-		cloud_notify_event(mqtt_cloud_backend, &cloud_evt,
+		cloud_notify_event(coap_cloud_backend, &cloud_evt,
 				   config->user_data);
 #else
-		mqtt_cloud_evt.type = MQTT_CLOUD_EVT_FOTA_DONE;
-		mqtt_cloud_notify_event(&mqtt_cloud_evt);
+		coap_cloud_evt.type = COAP_CLOUD_EVT_FOTA_DONE;
+		coap_cloud_notify_event(&coap_cloud_evt);
 #endif
 		break;
 	case AWS_FOTA_EVT_ERASE_PENDING:
 		LOG_DBG("AWS_FOTA_EVT_ERASE_PENDING");
 #if defined(CONFIG_CLOUD_API)
 		cloud_evt.type = CLOUD_EVT_FOTA_ERASE_PENDING;
-		cloud_notify_event(mqtt_cloud_backend, &cloud_evt,
+		cloud_notify_event(coap_cloud_backend, &cloud_evt,
 				   config->user_data);
 #else
-		mqtt_cloud_evt.type = MQTT_CLOUD_EVT_FOTA_ERASE_PENDING;
-		mqtt_cloud_notify_event(&mqtt_cloud_evt);
+		coap_cloud_evt.type = COAP_CLOUD_EVT_FOTA_ERASE_PENDING;
+		coap_cloud_notify_event(&coap_cloud_evt);
 #endif
 		break;
 	case AWS_FOTA_EVT_ERASE_DONE:
 		LOG_DBG("AWS_FOTA_EVT_ERASE_DONE");
 #if defined(CONFIG_CLOUD_API)
 		cloud_evt.type = CLOUD_EVT_FOTA_ERASE_DONE;
-		cloud_notify_event(mqtt_cloud_backend, &cloud_evt,
+		cloud_notify_event(coap_cloud_backend, &cloud_evt,
 				   config->user_data);
 #else
-		mqtt_cloud_evt.type = MQTT_CLOUD_EVT_FOTA_ERASE_DONE;
-		mqtt_cloud_notify_event(&mqtt_cloud_evt);
+		coap_cloud_evt.type = COAP_CLOUD_EVT_FOTA_ERASE_DONE;
+		coap_cloud_notify_event(&coap_cloud_evt);
 #endif
 		break;
 	case AWS_FOTA_EVT_ERROR:
@@ -278,67 +278,67 @@ static int topic_subscribe(void)
 {
 	int err;
 	const struct mqtt_topic mqtt_cloud_rx_list[] = {
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_GET_ACCEPTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_GET_ACCEPTED_SUBSCRIBE)
 		{
 			.topic = {
 				.utf8 = get_accepted_topic,
 				.size = strlen(get_accepted_topic)
 			},
-			.qos = MQTT_QOS_1_AT_LEAST_ONCE
+			.qos = COAP_QOS_1_AT_LEAST_ONCE
 		},
 #endif
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_GET_REJECTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_GET_REJECTED_SUBSCRIBE)
 		{
 			.topic = {
 				.utf8 = get_rejected_topic,
 				.size = strlen(get_rejected_topic)
 			},
-			.qos = MQTT_QOS_1_AT_LEAST_ONCE
+			.qos = COAP_QOS_1_AT_LEAST_ONCE
 		},
 #endif
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_UPDATE_ACCEPTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_ACCEPTED_SUBSCRIBE)
 		{
 			.topic = {
 				.utf8 = update_accepted_topic,
 				.size = strlen(update_accepted_topic)
 			},
-			.qos = MQTT_QOS_1_AT_LEAST_ONCE
+			.qos = COAP_QOS_1_AT_LEAST_ONCE
 		},
 #endif
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_UPDATE_REJECTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_REJECTED_SUBSCRIBE)
 		{
 			.topic = {
 				.utf8 = update_rejected_topic,
 				.size = strlen(update_rejected_topic)
 			},
-			.qos = MQTT_QOS_1_AT_LEAST_ONCE
+			.qos = COAP_QOS_1_AT_LEAST_ONCE
 		},
 #endif
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_UPDATE_DELTA_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_DELTA_SUBSCRIBE)
 		{
 			.topic = {
 				.utf8 = update_delta_topic,
 				.size = strlen(update_delta_topic)
 			},
-			.qos = MQTT_QOS_1_AT_LEAST_ONCE
+			.qos = COAP_QOS_1_AT_LEAST_ONCE
 		},
 #endif
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_DELETE_ACCEPTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_DELETE_ACCEPTED_SUBSCRIBE)
 		{
 			.topic = {
 				.utf8 = delete_accepted_topic,
 				.size = strlen(delete_accepted_topic)
 			},
-			.qos = MQTT_QOS_1_AT_LEAST_ONCE
+			.qos = COAP_QOS_1_AT_LEAST_ONCE
 		},
 #endif
-#if defined(CONFIG_MQTT_CLOUD_TOPIC_DELETE_REJECTED_SUBSCRIBE)
+#if defined(CONFIG_COAP_CLOUD_TOPIC_DELETE_REJECTED_SUBSCRIBE)
 		{
 			.topic = {
 				.utf8 = delete_rejected_topic,
 				.size = strlen(delete_rejected_topic)
 			},
-			.qos = MQTT_QOS_1_AT_LEAST_ONCE
+			.qos = COAP_QOS_1_AT_LEAST_ONCE
 		},
 #endif
 	};
@@ -385,7 +385,7 @@ static int topic_subscribe(void)
 static int publish_get_payload(struct mqtt_client *const c, size_t length)
 {
 	if (length > sizeof(payload_buf)) {
-		LOG_ERR("Incoming MQTT message too large for payload buffer");
+		LOG_ERR("Incoming COAP message too large for payload buffer");
 		return -EMSGSIZE;
 	}
 
@@ -397,10 +397,10 @@ static void mqtt_evt_handler(struct mqtt_client *const c,
 {
 	int err;
 #if defined(CONFIG_CLOUD_API)
-	struct cloud_backend_config *config = mqtt_cloud_backend->config;
+	struct cloud_backend_config *config = coap_cloud_backend->config;
 	struct cloud_event cloud_evt = { 0 };
 #else
-	struct mqtt_cloud_evt mqtt_cloud_evt = { 0 };
+	struct coap_cloud_evt coap_cloud_evt = { 0 };
 #endif
 
 #if defined(CONFIG_AWS_FOTA)
@@ -410,7 +410,7 @@ static void mqtt_evt_handler(struct mqtt_client *const c,
 		return;
 	} else if (err < 0) {
 		LOG_ERR("aws_fota_mqtt_evt_handler, error: %d", err);
-		LOG_DBG("Disconnecting MQTT client...");
+		LOG_DBG("Disconnecting COAP client...");
 
 		atomic_set(&disconnect_requested, 1);
 		err = mqtt_disconnect(c);
@@ -421,22 +421,22 @@ static void mqtt_evt_handler(struct mqtt_client *const c,
 #endif
 
 	switch (mqtt_evt->type) {
-	case MQTT_EVT_CONNACK:
+	case COAP_EVT_CONNACK:
 
 		if (mqtt_evt->param.connack.return_code) {
-			LOG_ERR("MQTT_EVT_CONNACK, error: %d",
+			LOG_ERR("COAP_EVT_CONNACK, error: %d",
 				mqtt_evt->param.connack.return_code);
 #if defined(CONFIG_CLOUD_API)
 			cloud_evt.data.err =
 				mqtt_evt->param.connack.return_code;
 			cloud_evt.type = CLOUD_EVT_ERROR;
-			cloud_notify_event(mqtt_cloud_backend, &cloud_evt,
+			cloud_notify_event(coap_cloud_backend, &cloud_evt,
 				   config->user_data);
 #else
-			mqtt_cloud_evt.data.err =
+			coap_cloud_evt.data.err =
 				mqtt_evt->param.connack.return_code;
-			mqtt_cloud_evt.type = MQTT_CLOUD_EVT_ERROR;
-			mqtt_cloud_notify_event(&mqtt_cloud_evt);
+			coap_cloud_evt.type = COAP_CLOUD_EVT_ERROR;
+			coap_cloud_notify_event(&coap_cloud_evt);
 #endif
 			break;
 		}
@@ -445,42 +445,42 @@ static void mqtt_evt_handler(struct mqtt_client *const c,
 			topic_subscribe();
 		}
 
-		LOG_DBG("MQTT client connected!");
+		LOG_DBG("COAP client connected!");
 
 #if defined(CONFIG_CLOUD_API)
 		cloud_evt.data.persistent_session =
 				   mqtt_evt->param.connack.session_present_flag;
 		cloud_evt.type = CLOUD_EVT_CONNECTED;
-		cloud_notify_event(mqtt_cloud_backend, &cloud_evt,
+		cloud_notify_event(coap_cloud_backend, &cloud_evt,
 				   config->user_data);
 		cloud_evt.type = CLOUD_EVT_READY;
-		cloud_notify_event(mqtt_cloud_backend, &cloud_evt,
+		cloud_notify_event(coap_cloud_backend, &cloud_evt,
 				   config->user_data);
 #else
-		mqtt_cloud_evt.data.persistent_session =
+		coap_cloud_evt.data.persistent_session =
 				   mqtt_evt->param.connack.session_present_flag;
-		mqtt_cloud_evt.type = MQTT_CLOUD_EVT_CONNECTED;
-		mqtt_cloud_notify_event(&mqtt_cloud_evt);
-		mqtt_cloud_evt.type = MQTT_CLOUD_EVT_READY;
-		mqtt_cloud_notify_event(&mqtt_cloud_evt);
+		coap_cloud_evt.type = COAP_CLOUD_EVT_CONNECTED;
+		coap_cloud_notify_event(&coap_cloud_evt);
+		coap_cloud_evt.type = COAP_CLOUD_EVT_READY;
+		coap_cloud_notify_event(&coap_cloud_evt);
 #endif
 		break;
-	case MQTT_EVT_DISCONNECT:
-		LOG_DBG("MQTT_EVT_DISCONNECT: result = %d", mqtt_evt->result);
+	case COAP_EVT_DISCONNECT:
+		LOG_DBG("COAP_EVT_DISCONNECT: result = %d", mqtt_evt->result);
 
 #if defined(CONFIG_CLOUD_API)
 		cloud_evt.type = CLOUD_EVT_DISCONNECTED;
-		cloud_notify_event(mqtt_cloud_backend, &cloud_evt,
+		cloud_notify_event(coap_cloud_backend, &cloud_evt,
 				   config->user_data);
 #else
-		mqtt_cloud_evt.type = MQTT_CLOUD_EVT_DISCONNECTED;
-		mqtt_cloud_notify_event(&mqtt_cloud_evt);
+		coap_cloud_evt.type = COAP_CLOUD_EVT_DISCONNECTED;
+		coap_cloud_notify_event(&coap_cloud_evt);
 #endif
 		break;
-	case MQTT_EVT_PUBLISH: {
+	case COAP_EVT_PUBLISH: {
 		const struct mqtt_publish_param *p = &mqtt_evt->param.publish;
 
-		LOG_DBG("MQTT_EVT_PUBLISH: id = %d len = %d ",
+		LOG_DBG("COAP_EVT_PUBLISH: id = %d len = %d ",
 			p->message_id,
 			p->message.payload.len);
 
@@ -490,7 +490,7 @@ static void mqtt_evt_handler(struct mqtt_client *const c,
 			break;
 		}
 
-		if (p->message.topic.qos == MQTT_QOS_1_AT_LEAST_ONCE) {
+		if (p->message.topic.qos == COAP_QOS_1_AT_LEAST_ONCE) {
 			const struct mqtt_puback_param ack = {
 				.message_id = p->message_id
 			};
@@ -506,27 +506,27 @@ static void mqtt_evt_handler(struct mqtt_client *const c,
 		cloud_evt.data.msg.endpoint.str = p->message.topic.topic.utf8;
 		cloud_evt.data.msg.endpoint.len = p->message.topic.topic.size;
 
-		cloud_notify_event(mqtt_cloud_backend, &cloud_evt,
+		cloud_notify_event(coap_cloud_backend, &cloud_evt,
 				   config->user_data);
 #else
-		mqtt_cloud_evt.type = MQTT_CLOUD_EVT_DATA_RECEIVED;
-		mqtt_cloud_evt.data.msg.ptr = payload_buf;
-		mqtt_cloud_evt.data.msg.len = p->message.payload.len;
-		mqtt_cloud_evt.data.msg.topic.type = MQTT_CLOUD_SHADOW_TOPIC_UNKNOWN;
-		mqtt_cloud_evt.data.msg.topic.str = p->message.topic.topic.utf8;
-		mqtt_cloud_evt.data.msg.topic.len = p->message.topic.topic.size;
+		coap_cloud_evt.type = COAP_CLOUD_EVT_DATA_RECEIVED;
+		coap_cloud_evt.data.msg.ptr = payload_buf;
+		coap_cloud_evt.data.msg.len = p->message.payload.len;
+		coap_cloud_evt.data.msg.topic.type = COAP_CLOUD_SHADOW_TOPIC_UNKNOWN;
+		coap_cloud_evt.data.msg.topic.str = p->message.topic.topic.utf8;
+		coap_cloud_evt.data.msg.topic.len = p->message.topic.topic.size;
 
-		mqtt_cloud_notify_event(&mqtt_cloud_evt);
+		coap_cloud_notify_event(&coap_cloud_evt);
 #endif
 
 	} break;
-	case MQTT_EVT_PUBACK:
-		LOG_DBG("MQTT_EVT_PUBACK: id = %d result = %d",
+	case COAP_EVT_PUBACK:
+		LOG_DBG("COAP_EVT_PUBACK: id = %d result = %d",
 			mqtt_evt->param.puback.message_id,
 			mqtt_evt->result);
 		break;
-	case MQTT_EVT_SUBACK:
-		LOG_DBG("MQTT_EVT_SUBACK: id = %d result = %d",
+	case COAP_EVT_SUBACK:
+		LOG_DBG("COAP_EVT_SUBACK: id = %d result = %d",
 			mqtt_evt->param.suback.message_id,
 			mqtt_evt->result);
 		break;
@@ -535,18 +535,18 @@ static void mqtt_evt_handler(struct mqtt_client *const c,
 	}
 }
 
-#if defined(CONFIG_MQTT_CLOUD_STATIC_IPV4)
+#if defined(CONFIG_COAP_CLOUD_STATIC_IPV4)
 static int broker_init(void)
 {
 	struct sockaddr_in *broker4 =
 		((struct sockaddr_in *)&broker);
 
-	inet_pton(AF_INET, CONFIG_MQTT_CLOUD_STATIC_IPV4_ADDR,
+	inet_pton(AF_INET, CONFIG_COAP_CLOUD_STATIC_IPV4_ADDR,
 		  &broker->sin_addr);
 	broker4->sin_family = AF_INET;
-	broker4->sin_port = htons(CONFIG_MQTT_CLOUD_PORT);
+	broker4->sin_port = htons(CONFIG_COAP_CLOUD_PORT);
 
-	LOG_DBG("IPv4 Address %s", log_strdup(CONFIG_MQTT_CLOUD_STATIC_IPV4_ADDR));
+	LOG_DBG("IPv4 Address %s", log_strdup(CONFIG_COAP_CLOUD_STATIC_IPV4_ADDR));
 
 	return 0;
 }
@@ -561,7 +561,7 @@ static int broker_init(void)
 		.ai_socktype = SOCK_STREAM
 	};
 
-	err = getaddrinfo(CONFIG_MQTT_CLOUD_BROKER_HOST_NAME,
+	err = getaddrinfo(CONFIG_COAP_CLOUD_BROKER_HOST_NAME,
 			  NULL, &hints, &result);
 	if (err) {
 		LOG_ERR("getaddrinfo, error %d", err);
@@ -581,7 +581,7 @@ static int broker_init(void)
 				((struct sockaddr_in *)addr->ai_addr)
 				->sin_addr.s_addr;
 			broker4->sin_family = AF_INET;
-			broker4->sin_port = htons(CONFIG_MQTT_CLOUD_PORT);
+			broker4->sin_port = htons(CONFIG_COAP_CLOUD_PORT);
 
 			inet_ntop(AF_INET, &broker4->sin_addr.s_addr, ipv4_addr,
 				  sizeof(ipv4_addr));
@@ -598,7 +598,7 @@ static int broker_init(void)
 			       ->sin6_addr.s6_addr,
 			       sizeof(struct in6_addr));
 			broker6->sin6_family = AF_INET6;
-			broker6->sin6_port = htons(CONFIG_MQTT_CLOUD_PORT);
+			broker6->sin6_port = htons(CONFIG_COAP_CLOUD_PORT);
 
 			inet_ntop(AF_INET6, &broker6->sin6_addr.s6_addr,
 				  ipv6_addr, sizeof(ipv6_addr));
@@ -638,18 +638,18 @@ static int client_broker_init(struct mqtt_client *const client)
 	client->client_id.size		= strlen(client_id_buf);
 	client->password		= NULL;
 	client->user_name		= NULL;
-	client->protocol_version	= MQTT_VERSION_3_1_1;
+	client->protocol_version	= COAP_VERSION_3_1_1;
 	client->rx_buf			= rx_buffer;
 	client->rx_buf_size		= sizeof(rx_buffer);
 	client->tx_buf			= tx_buffer;
 	client->tx_buf_size		= sizeof(tx_buffer);
-	client->transport.type		= MQTT_TRANSPORT_NON_SECURE;
+	client->transport.type		= COAP_TRANSPORT_NON_SECURE;
 
-#if defined(CONFIG_MQTT_CLOUD_PERSISTENT_SESSIONS)
+#if defined(CONFIG_COAP_CLOUD_PERSISTENT_SESSIONS)
 	client->clean_session		= 0U;
 #endif
 
-	static sec_tag_t sec_tag_list[] = { CONFIG_MQTT_CLOUD_SEC_TAG };
+	static sec_tag_t sec_tag_list[] = { CONFIG_COAP_CLOUD_SEC_TAG };
 	struct mqtt_sec_config *tls_cfg = &(client->transport).tls.config;
 
 	tls_cfg->peer_verify		= 2;
@@ -657,7 +657,7 @@ static int client_broker_init(struct mqtt_client *const client)
 	tls_cfg->cipher_list		= NULL;
 	tls_cfg->sec_tag_count		= ARRAY_SIZE(sec_tag_list);
 	tls_cfg->sec_tag_list		= sec_tag_list;
-	tls_cfg->hostname		= CONFIG_MQTT_CLOUD_BROKER_HOST_NAME;
+	tls_cfg->hostname		= CONFIG_COAP_CLOUD_BROKER_HOST_NAME;
 
 	return err;
 }
@@ -704,25 +704,25 @@ static int connect_error_translate(const int err)
 		return CLOUD_CONNECT_RES_ERR_MISC;
 #else
 	case 0:
-		return MQTT_CLOUD_CONNECT_RES_SUCCESS;
+		return COAP_CLOUD_CONNECT_RES_SUCCESS;
 	case -ECHILD:
-		return MQTT_CLOUD_CONNECT_RES_ERR_NETWORK;
+		return COAP_CLOUD_CONNECT_RES_ERR_NETWORK;
 	case -EACCES:
-		return MQTT_CLOUD_CONNECT_RES_ERR_NOT_INITD;
+		return COAP_CLOUD_CONNECT_RES_ERR_NOT_INITD;
 	case -ENOEXEC:
-		return MQTT_CLOUD_CONNECT_RES_ERR_BACKEND;
+		return COAP_CLOUD_CONNECT_RES_ERR_BACKEND;
 	case -EINVAL:
-		return MQTT_CLOUD_CONNECT_RES_ERR_PRV_KEY;
+		return COAP_CLOUD_CONNECT_RES_ERR_PRV_KEY;
 	case -EOPNOTSUPP:
-		return MQTT_CLOUD_CONNECT_RES_ERR_CERT;
+		return COAP_CLOUD_CONNECT_RES_ERR_CERT;
 	case -ECONNREFUSED:
-		return MQTT_CLOUD_CONNECT_RES_ERR_CERT_MISC;
+		return COAP_CLOUD_CONNECT_RES_ERR_CERT_MISC;
 	case -ETIMEDOUT:
-		return MQTT_CLOUD_CONNECT_RES_ERR_TIMEOUT_NO_DATA;
+		return COAP_CLOUD_CONNECT_RES_ERR_TIMEOUT_NO_DATA;
 	case -ENOMEM:
-		return MQTT_CLOUD_CONNECT_RES_ERR_NO_MEM;
+		return COAP_CLOUD_CONNECT_RES_ERR_NO_MEM;
 	case -EINPROGRESS:
-		return MQTT_CLOUD_CONNECT_RES_ERR_ALREADY_CONNECTED;
+		return COAP_CLOUD_CONNECT_RES_ERR_ALREADY_CONNECTED;
 	default:
 		LOG_ERR("AWS broker connect failed %d", err);
 		return CLOUD_CONNECT_RES_ERR_MISC;
@@ -758,15 +758,15 @@ int mqtt_cloud_send(const struct mqtt_cloud_data *const tx_data)
 
 #if !defined(CONFIG_CLOUD_API)
 	switch (tx_data->topic.type) {
-	case MQTT_CLOUD_SHADOW_TOPIC_GET:
+	case COAP_CLOUD_SHADOW_TOPIC_GET:
 		tx_data_pub.topic.str = get_topic;
 		tx_data_pub.topic.len = strlen(get_topic);
 		break;
-	case MQTT_CLOUD_SHADOW_TOPIC_UPDATE:
+	case COAP_CLOUD_SHADOW_TOPIC_UPDATE:
 		tx_data_pub.topic.str = update_topic;
 		tx_data_pub.topic.len = strlen(update_topic);
 		break;
-	case MQTT_CLOUD_SHADOW_TOPIC_DELETE:
+	case COAP_CLOUD_SHADOW_TOPIC_DELETE:
 		tx_data_pub.topic.str = delete_topic;
 		tx_data_pub.topic.len = strlen(delete_topic);
 		break;
@@ -806,7 +806,7 @@ int mqtt_cloud_connect(struct mqtt_cloud_config *const config)
 {
 	int err;
 
-	if (IS_ENABLED(CONFIG_MQTT_CLOUD_CONNECTION_POLL_THREAD)) {
+	if (IS_ENABLED(CONFIG_COAP_CLOUD_CONNECTION_POLL_THREAD)) {
 		err = connection_poll_start();
 	} else {
 		atomic_set(&disconnect_requested, 0);
@@ -841,7 +841,7 @@ int mqtt_cloud_subscription_topics_add(
 		return -EMSGSIZE;
 	}
 
-	if (list_count != CONFIG_MQTT_CLOUD_APP_SUBSCRIPTION_LIST_COUNT) {
+	if (list_count != CONFIG_COAP_CLOUD_APP_SUBSCRIPTION_LIST_COUNT) {
 		LOG_ERR("Application subscription list count mismatch");
 		return -EMSGSIZE;
 	}
@@ -849,7 +849,7 @@ int mqtt_cloud_subscription_topics_add(
 	for (size_t i = 0; i < list_count; i++) {
 		app_topic_data.list[i].topic.utf8 = topic_list[i].str;
 		app_topic_data.list[i].topic.size = topic_list[i].len;
-		app_topic_data.list[i].qos = MQTT_QOS_1_AT_LEAST_ONCE;
+		app_topic_data.list[i].qos = COAP_QOS_1_AT_LEAST_ONCE;
 	}
 
 	app_topic_data.list_count = list_count;
@@ -858,17 +858,17 @@ int mqtt_cloud_subscription_topics_add(
 }
 
 int mqtt_cloud_init(const struct mqtt_cloud_config *const config,
-		 mqtt_cloud_evt_handler_t event_handler)
+		 coap_cloud_evt_handler_t event_handler)
 {
 	int err;
 
-	if (IS_ENABLED(CONFIG_MQTT_CLOUD_CLIENT_ID_APP) &&
-	    config->client_id_len >= CONFIG_MQTT_CLOUD_CLIENT_ID_MAX_LEN) {
+	if (IS_ENABLED(CONFIG_COAP_CLOUD_CLIENT_ID_APP) &&
+	    config->client_id_len >= CONFIG_COAP_CLOUD_CLIENT_ID_MAX_LEN) {
 		LOG_ERR("Client ID string too long");
 		return -EMSGSIZE;
 	}
 
-	if (IS_ENABLED(CONFIG_MQTT_CLOUD_CLIENT_ID_APP) &&
+	if (IS_ENABLED(CONFIG_COAP_CLOUD_CLIENT_ID_APP) &&
 	    config->client_id == NULL) {
 		LOG_ERR("Client ID not set in the application");
 		return -ENODATA;
@@ -895,7 +895,7 @@ int mqtt_cloud_init(const struct mqtt_cloud_config *const config,
 	return err;
 }
 
-#if defined(CONFIG_MQTT_CLOUD_CONNECTION_POLL_THREAD)
+#if defined(CONFIG_COAP_CLOUD_CONNECTION_POLL_THREAD)
 void mqtt_cloud_cloud_poll(void)
 {
 	int err;
@@ -906,9 +906,9 @@ void mqtt_cloud_cloud_poll(void)
 		.data = { .err = CLOUD_DISCONNECT_MISC}
 	};
 #else
-	struct mqtt_cloud_evt cloud_evt = {
-		.type = MQTT_CLOUD_EVT_DISCONNECTED,
-		.data = { .err = MQTT_CLOUD_DISCONNECT_MISC}
+	struct coap_cloud_evt cloud_evt = {
+		.type = COAP_CLOUD_EVT_DISCONNECTED,
+		.data = { .err = COAP_CLOUD_DISCONNECT_MISC}
 	};
 #endif
 
@@ -919,11 +919,11 @@ start:
 #if defined(CONFIG_CLOUD_API)
 	cloud_evt.data.err = CLOUD_CONNECT_RES_SUCCESS;
 	cloud_evt.type = CLOUD_EVT_CONNECTING;
-	cloud_notify_event(mqtt_cloud_backend, &cloud_evt, NULL);
+	cloud_notify_event(coap_cloud_backend, &cloud_evt, NULL);
 #else
-	cloud_evt.data.err = MQTT_CLOUD_CONNECT_RES_SUCCESS;
-	cloud_evt.type = MQTT_CLOUD_EVT_CONNECTING;
-	mqtt_cloud_notify_event(&cloud_evt);
+	cloud_evt.data.err = COAP_CLOUD_CONNECT_RES_SUCCESS;
+	cloud_evt.type = COAP_CLOUD_EVT_CONNECTING;
+	coap_cloud_notify_event(&cloud_evt);
 #endif
 
 	err = client_broker_init(&client);
@@ -942,16 +942,16 @@ start:
 	if (err != CLOUD_CONNECT_RES_SUCCESS) {
 		cloud_evt.data.err = err;
 		cloud_evt.type = CLOUD_EVT_CONNECTING;
-		cloud_notify_event(mqtt_cloud_backend, &cloud_evt, NULL);
+		cloud_notify_event(coap_cloud_backend, &cloud_evt, NULL);
 		goto reset;
 	} else {
 		LOG_DBG("Cloud connection request sent.");
 	}
 #else
-	if (err != MQTT_CLOUD_CONNECT_RES_SUCCESS) {
+	if (err != COAP_CLOUD_CONNECT_RES_SUCCESS) {
 		cloud_evt.data.err = err;
-		cloud_evt.type = MQTT_CLOUD_EVT_CONNECTING;
-		mqtt_cloud_notify_event(&cloud_evt);
+		cloud_evt.type = COAP_CLOUD_EVT_CONNECTING;
+		coap_cloud_notify_event(&cloud_evt);
 		goto reset;
 	} else {
 		LOG_DBG("AWS broker connection request sent.");
@@ -965,15 +965,15 @@ start:
 #if defined(CONFIG_CLOUD_API)
 	cloud_evt.type = CLOUD_EVT_DISCONNECTED;
 #else
-	cloud_evt.type = MQTT_CLOUD_EVT_DISCONNECTED;
+	cloud_evt.type = COAP_CLOUD_EVT_DISCONNECTED;
 #endif
 
 	while (true) {
-		err = poll(fds, ARRAY_SIZE(fds), MQTT_CLOUD_POLL_TIMEOUT_MS);
+		err = poll(fds, ARRAY_SIZE(fds), COAP_CLOUD_POLL_TIMEOUT_MS);
 
 		if (err == 0) {
 			if (mqtt_cloud_keepalive_time_left() <
-			    MQTT_CLOUD_POLL_TIMEOUT_MS) {
+			    COAP_CLOUD_POLL_TIMEOUT_MS) {
 				mqtt_cloud_ping();
 			}
 			continue;
@@ -989,7 +989,7 @@ start:
 #if defined(CONFIG_CLOUD_API)
 			cloud_evt.data.err = CLOUD_DISCONNECT_MISC;
 #else
-			cloud_evt.data.err = MQTT_CLOUD_DISCONNECT_MISC;
+			cloud_evt.data.err = COAP_CLOUD_DISCONNECT_MISC;
 #endif
 			break;
 		}
@@ -999,10 +999,10 @@ start:
 			LOG_DBG("Expected disconnect event.");
 #if defined(CONFIG_CLOUD_API)
 			cloud_evt.data.err = CLOUD_DISCONNECT_USER_REQUEST;
-			cloud_notify_event(mqtt_cloud_backend, &cloud_evt, NULL);
+			cloud_notify_event(coap_cloud_backend, &cloud_evt, NULL);
 #else
-			cloud_evt.data.err = MQTT_CLOUD_DISCONNECT_MISC;
-			mqtt_cloud_notify_event(&cloud_evt);
+			cloud_evt.data.err = COAP_CLOUD_DISCONNECT_MISC;
+			coap_cloud_notify_event(&cloud_evt);
 #endif
 			goto reset;
 		}
@@ -1013,7 +1013,7 @@ start:
 #if defined(CONFIG_CLOUD_API)
 			cloud_evt.data.err = CLOUD_DISCONNECT_INVALID_REQUEST;
 #else
-			cloud_evt.data.err = MQTT_CLOUD_DISCONNECT_INVALID_REQUEST;
+			cloud_evt.data.err = COAP_CLOUD_DISCONNECT_INVALID_REQUEST;
 #endif
 			break;
 		}
@@ -1025,7 +1025,7 @@ start:
 			cloud_evt.data.err = CLOUD_DISCONNECT_CLOSED_BY_REMOTE;
 #else
 			cloud_evt.data.err =
-					MQTT_CLOUD_DISCONNECT_CLOSED_BY_REMOTE;
+					COAP_CLOUD_DISCONNECT_CLOSED_BY_REMOTE;
 #endif
 			break;
 		}
@@ -1036,16 +1036,16 @@ start:
 #if defined(CONFIG_CLOUD_API)
 			cloud_evt.data.err = CLOUD_DISCONNECT_MISC;
 #else
-			cloud_evt.data.err = MQTT_CLOUD_DISCONNECT_MISC;
+			cloud_evt.data.err = COAP_CLOUD_DISCONNECT_MISC;
 #endif
 			break;
 		}
 	}
 
 #if defined(CONFIG_CLOUD_API)
-	cloud_notify_event(mqtt_cloud_backend, &cloud_evt, NULL);
+	cloud_notify_event(coap_cloud_backend, &cloud_evt, NULL);
 #else
-	mqtt_cloud_notify_event(&cloud_evt);
+	coap_cloud_notify_event(&cloud_evt);
 #endif
 	mqtt_cloud_disconnect();
 
@@ -1072,7 +1072,7 @@ static int c_init(const struct cloud_backend *const backend,
 
     printk("hello, i am initilaizing and probably then crashing\n");
 	backend->config->handler = handler;
-	mqtt_cloud_backend = (struct cloud_backend *)backend;
+	coap_cloud_backend = (struct cloud_backend *)backend;
 
 	struct mqtt_cloud_config config = {
 		.client_id = backend->config->id,
@@ -1157,7 +1157,7 @@ static int c_keepalive_time_left(const struct cloud_backend *const backend)
 	return mqtt_cloud_keepalive_time_left();
 }
 
-static const struct cloud_api mqtt_cloud_api = {
+static const struct cloud_api coap_cloud_api = {
 	.init			= c_init,
 	.connect		= c_connect,
 	.disconnect		= c_disconnect,
@@ -1168,5 +1168,5 @@ static const struct cloud_api mqtt_cloud_api = {
 	.ep_subscriptions_add	= c_ep_subscriptions_add
 };
 
-CLOUD_BACKEND_DEFINE(MQTT_CLOUD, mqtt_cloud_api);
+CLOUD_BACKEND_DEFINE(COAP_CLOUD, coap_cloud_api);
 #endif

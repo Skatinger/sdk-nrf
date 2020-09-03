@@ -8,14 +8,14 @@
  *@brief AWS IoT library header.
  */
 
-#ifndef MQTT_CLOUD_H__
-#define MQTT_CLOUD_H__
+#ifndef COAP_CLOUD_H__
+#define COAP_CLOUD_H__
 
 #include <stdio.h>
 #include <net/mqtt.h>
 
 /**
- * @defgroup mqtt_cloud AWS IoT library
+ * @defgroup coap_cloud AWS IoT library
  * @{
  * @brief Library to connect the device to the AWS IoT message broker.
  */
@@ -27,70 +27,70 @@ extern "C" {
 /** @brief AWS IoT shadow topics, used in messages to specify which shadow
  *         topic that will be published to.
  */
-enum mqtt_cloud_topic_type {
-    MQTT_CLOUD_SHADOW_TOPIC_UNKNOWN = 0x0,
-    MQTT_CLOUD_SHADOW_TOPIC_GET,
-    MQTT_CLOUD_SHADOW_TOPIC_UPDATE,
-    MQTT_CLOUD_SHADOW_TOPIC_DELETE
+enum coap_cloud_topic_type {
+    coap_cloud_SHADOW_TOPIC_UNKNOWN = 0x0,
+    coap_cloud_SHADOW_TOPIC_GET,
+    coap_cloud_SHADOW_TOPIC_UPDATE,
+    coap_cloud_SHADOW_TOPIC_DELETE
 };
 
 /**@ AWS broker disconnect results. */
 enum aws_disconnect_result {
-    MQTT_CLOUD_DISCONNECT_USER_REQUEST,
-    MQTT_CLOUD_DISCONNECT_CLOSED_BY_REMOTE,
-    MQTT_CLOUD_DISCONNECT_INVALID_REQUEST,
-    MQTT_CLOUD_DISCONNECT_MISC,
-    MQTT_CLOUD_DISCONNECT_COUNT
+    coap_cloud_DISCONNECT_USER_REQUEST,
+    coap_cloud_DISCONNECT_CLOSED_BY_REMOTE,
+    coap_cloud_DISCONNECT_INVALID_REQUEST,
+    coap_cloud_DISCONNECT_MISC,
+    coap_cloud_DISCONNECT_COUNT
 };
 
 /**@brief AWS broker connect results. */
 enum aws_connect_result {
-    MQTT_CLOUD_CONNECT_RES_SUCCESS = 0,
-    MQTT_CLOUD_CONNECT_RES_ERR_NOT_INITD = -1,
-    MQTT_CLOUD_CONNECT_RES_ERR_INVALID_PARAM = -2,
-    MQTT_CLOUD_CONNECT_RES_ERR_NETWORK = -3,
-    MQTT_CLOUD_CONNECT_RES_ERR_BACKEND = -4,
-    MQTT_CLOUD_CONNECT_RES_ERR_MISC = -5,
-    MQTT_CLOUD_CONNECT_RES_ERR_NO_MEM = -6,
+    coap_cloud_CONNECT_RES_SUCCESS = 0,
+    coap_cloud_CONNECT_RES_ERR_NOT_INITD = -1,
+    coap_cloud_CONNECT_RES_ERR_INVALID_PARAM = -2,
+    coap_cloud_CONNECT_RES_ERR_NETWORK = -3,
+    coap_cloud_CONNECT_RES_ERR_BACKEND = -4,
+    coap_cloud_CONNECT_RES_ERR_MISC = -5,
+    coap_cloud_CONNECT_RES_ERR_NO_MEM = -6,
     /* Invalid private key */
-    MQTT_CLOUD_CONNECT_RES_ERR_PRV_KEY = -7,
+    coap_cloud_CONNECT_RES_ERR_PRV_KEY = -7,
     /* Invalid CA or client cert */
-    MQTT_CLOUD_CONNECT_RES_ERR_CERT = -8,
+    coap_cloud_CONNECT_RES_ERR_CERT = -8,
     /* Other cert issue */
-    MQTT_CLOUD_CONNECT_RES_ERR_CERT_MISC = -9,
+    coap_cloud_CONNECT_RES_ERR_CERT_MISC = -9,
     /* Timeout, SIM card may be out of data */
-    MQTT_CLOUD_CONNECT_RES_ERR_TIMEOUT_NO_DATA = -10,
-    MQTT_CLOUD_CONNECT_RES_ERR_ALREADY_CONNECTED = -11,
+    coap_cloud_CONNECT_RES_ERR_TIMEOUT_NO_DATA = -10,
+    coap_cloud_CONNECT_RES_ERR_ALREADY_CONNECTED = -11,
 };
 
 /** @brief AWS IoT notification event types, used to signal the application. */
-enum mqtt_cloud_evt_type {
+enum coap_cloud_evt_type {
     /** Connecting to AWS IoT broker. */
-    MQTT_CLOUD_EVT_CONNECTING = 0x1,
+    coap_cloud_evt_CONNECTING = 0x1,
     /** Connected to AWS IoT broker. */
-    MQTT_CLOUD_EVT_CONNECTED,
+    coap_cloud_evt_CONNECTED,
     /** AWS IoT broker ready. */
-    MQTT_CLOUD_EVT_READY,
+    coap_cloud_evt_READY,
     /** Disconnected to AWS IoT broker. */
-    MQTT_CLOUD_EVT_DISCONNECTED,
+    coap_cloud_evt_DISCONNECTED,
     /** Data received from AWS message broker. */
-    MQTT_CLOUD_EVT_DATA_RECEIVED,
+    coap_cloud_evt_DATA_RECEIVED,
     /** FOTA update start. */
-    MQTT_CLOUD_EVT_FOTA_START,
+    coap_cloud_evt_FOTA_START,
     /** FOTA update done, request to reboot. */
-    MQTT_CLOUD_EVT_FOTA_DONE,
+    coap_cloud_evt_FOTA_DONE,
     /** FOTA erase pending. */
-    MQTT_CLOUD_EVT_FOTA_ERASE_PENDING,
+    coap_cloud_evt_FOTA_ERASE_PENDING,
     /** FOTA erase done. */
-    MQTT_CLOUD_EVT_FOTA_ERASE_DONE,
+    coap_cloud_evt_FOTA_ERASE_DONE,
     /** AWS IoT library error. */
-    MQTT_CLOUD_EVT_ERROR
+    coap_cloud_evt_ERROR
 };
 
 /** @brief AWS IoT topic data. */
-struct mqtt_cloud_topic_data {
+struct coap_cloud_topic_data {
     /** Type of shadow topic that will be published to. */
-    enum mqtt_cloud_topic_type type;
+    enum coap_cloud_topic_type type;
     /** Pointer to string of application specific topic. */
     const char *str;
     /** Length of application specific topic. */
@@ -100,17 +100,17 @@ struct mqtt_cloud_topic_data {
 /** @brief Structure used to declare a list of application specific topics
  *         passed in by the application.
  */
-struct mqtt_cloud_app_topic_data {
+struct coap_cloud_app_topic_data {
     /** List of application specific topics. */
-    struct mqtt_topic list[CONFIG_MQTT_CLOUD_APP_SUBSCRIPTION_LIST_COUNT];
+     struct mqtt_topic list[CONFIG_COAP_CLOUD_APP_SUBSCRIPTION_LIST_COUNT];
     /** Number of entries in topic list. */
     size_t list_count;
 };
 
 /** @brief AWS IoT transmission data. */
-struct mqtt_cloud_data {
+struct coap_cloud_data {
     /** Topic data is sent/received on. */
-    struct mqtt_cloud_topic_data topic;
+    struct coap_cloud_topic_data topic;
     /** Pointer to data sent/received from the AWS IoT broker. */
     char *ptr;
     /** Length of data. */
@@ -120,11 +120,11 @@ struct mqtt_cloud_data {
 };
 
 /** @brief Struct with data received from AWS IoT broker. */
-struct mqtt_cloud_evt {
+struct coap_cloud_evt {
     /** Type of event. */
-    enum mqtt_cloud_evt_type type;
+    enum coap_cloud_evt_type type;
     union {
-        struct mqtt_cloud_data msg;
+        struct coap_cloud_data msg;
         int err;
         bool persistent_session;
     } data;
@@ -134,14 +134,14 @@ struct mqtt_cloud_evt {
  *
  *  @param[in] evt The event and any associated parameters.
  */
-typedef void (*mqtt_cloud_evt_handler_t)(const struct mqtt_cloud_evt *evt);
+typedef void (*coap_cloud_evt_handler_t)(const struct coap_cloud_evt *evt);
 
 /** @brief Structure for AWS IoT broker connection parameters. */
-struct mqtt_cloud_config {
+struct coap_cloud_config {
     /** Socket for AWS IoT broker connection */
     int socket;
     /** Client id for AWS IoT broker connection, used when
-     *  CONFIG_MQTT_CLOUD_CLIENT_ID_APP is set. If not set an internal
+     *  CONFIG_coap_cloud_CLIENT_ID_APP is set. If not set an internal
      *  configurable static client id is used.
      */
     char *client_id;
@@ -161,8 +161,8 @@ struct mqtt_cloud_config {
  *  @return 0 If successful.
  *            Otherwise, a (negative) error code is returned.
  */
-int mqtt_cloud_init(const struct mqtt_cloud_config *const config,
-                    mqtt_cloud_evt_handler_t event_handler);
+int coap_cloud_init(const struct coap_cloud_config *const config,
+                    coap_cloud_evt_handler_t event_handler);
 
 /** @brief Connect to the AWS IoT broker.
  *
@@ -176,14 +176,14 @@ int mqtt_cloud_init(const struct mqtt_cloud_config *const config,
  *  @return 0 If successful.
  *            Otherwise, a (negative) error code is returned.
  */
-int mqtt_cloud_connect(struct mqtt_cloud_config *const config);
+int coap_cloud_connect(struct coap_cloud_config *const config);
 
 /** @brief Disconnect from the AWS IoT broker.
  *
  *  @return 0 If successful.
  *            Otherwise, a (negative) error code is returned.
  */
-int mqtt_cloud_disconnect(void);
+int coap_cloud_disconnect(void);
 
 /** @brief Send data to AWS IoT broker.
  *
@@ -193,14 +193,14 @@ int mqtt_cloud_disconnect(void);
  *  @return 0 If successful.
  *            Otherwise, a (negative) error code is returned.
  */
-int mqtt_cloud_send(const struct mqtt_cloud_data *const tx_data);
+int coap_cloud_send(const struct coap_cloud_data *const tx_data);
 
 /** @brief Get data from AWS IoT broker
  *
  *  @return 0 If successful.
  *            Otherwise, a (negative) error code is returned.
  */
-int mqtt_cloud_input(void);
+int coap_cloud_input(void);
 
 /** @brief Ping AWS IoT broker. Must be called periodically
  *         to keep connection to broker alive.
@@ -208,7 +208,7 @@ int mqtt_cloud_input(void);
  *  @return 0 If successful.
  *            Otherwise, a (negative) error code is returned.
  */
-int mqtt_cloud_ping(void);
+int coap_cloud_ping(void);
 
 /** @brief Add a list of application specific topics that will be subscribed to
  *         upon connection to AWS IoT broker.
@@ -219,8 +219,8 @@ int mqtt_cloud_ping(void);
  *  @return 0 If successful.
  *            Otherwise, a (negative) error code is returned.
  */
-int mqtt_cloud_subscription_topics_add(
-        const struct mqtt_cloud_topic_data *const topic_list,
+int coap_cloud_subscription_topics_add(
+        const struct coap_cloud_topic_data *const topic_list,
         size_t list_count);
 
 #ifdef __cplusplus
@@ -231,4 +231,4 @@ int mqtt_cloud_subscription_topics_add(
  *@}
  */
 
-#endif /* MQTT_CLOUD_H__ */
+#endif /* COAP_CLOUD_H__ */

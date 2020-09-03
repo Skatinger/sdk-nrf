@@ -23,7 +23,7 @@
 #include <net/socket.h>
 // swap nrf_cloud backend with custom coap_cloud backend
 // #include <net/nrf_cloud.h>
-#include "mqtt_cloud.h"
+#include "coap_cloud.h"
 #if defined(CONFIG_NRF_CLOUD_AGPS)
 #include <net/nrf_cloud_agps.h>
 #endif
@@ -1543,7 +1543,7 @@ static void cloud_api_init(void)
 {
 	int ret;
 
-	cloud_backend = cloud_get_binding("MQTT_CLOUD");
+	cloud_backend = cloud_get_binding("COAP_CLOUD");
 	__ASSERT(cloud_backend != NULL, "COAP Cloud backend not found");
 
 	ret = cloud_init(cloud_backend, cloud_event_handler);
