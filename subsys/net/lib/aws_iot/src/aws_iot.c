@@ -508,6 +508,10 @@ static int topic_subscribe(void)
 		}
 	}
 
+	struct aws_iot_evt aws_iot_evt = { 0 };
+	aws_iot_evt.type = AWS_IOT_EVT_READY;
+	aws_iot_notify_event(&aws_iot_evt);
+
 	return err;
 }
 
@@ -568,8 +572,6 @@ static void mqtt_evt_handler(struct mqtt_client *const c,
 		aws_iot_evt.data.persistent_session =
 				   mqtt_evt->param.connack.session_present_flag;
 		aws_iot_evt.type = AWS_IOT_EVT_CONNECTED;
-		aws_iot_notify_event(&aws_iot_evt);
-		aws_iot_evt.type = AWS_IOT_EVT_READY;
 		aws_iot_notify_event(&aws_iot_evt);
 		break;
 	case MQTT_EVT_DISCONNECT:
