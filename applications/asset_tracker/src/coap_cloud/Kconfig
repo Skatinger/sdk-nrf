@@ -4,12 +4,12 @@
 # SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
 #
 
-menuconfig MQTT_CLOUD
+menuconfig COAP_CLOUD
     bool "COAP library"
     select MQTT_LIB
     select MQTT_LIB_TLS
 
-if MQTT_CLOUD
+if COAP_CLOUD
 
 config MQTT_CLOUD_STATIC_IPV4
     bool "Enable use of static IPv4"
@@ -81,9 +81,9 @@ config MQTT_CLOUD_TOPIC_DELETE_REJECTED_SUBSCRIBE
 config MQTT_CLOUD_CONNECTION_POLL_THREAD
     bool "Enable polling on MQTT socket in AWS IoT backend"
 
-module=MQTT_CLOUD
+module=COAP_CLOUD
 module-dep=LOG
 module-str=AWS IoT
         source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
 
-endif # MQTT_CLOUD
+endif # COAP_CLOUD

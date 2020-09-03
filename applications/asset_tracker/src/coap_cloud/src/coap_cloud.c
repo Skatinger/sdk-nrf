@@ -1,4 +1,4 @@
-#include "mqtt_cloud.h"
+#include "coap_cloud.h"
 #include <net/mqtt.h>
 #include <net/socket.h>
 #include <net/cloud.h>
@@ -11,7 +11,7 @@
 
 #include <logging/log.h>
 
-LOG_MODULE_REGISTER(mqtt_cloud, CONFIG_MQTT_CLOUD_LOG_LEVEL);
+LOG_MODULE_REGISTER(coap_cloud, CONFIG_MQTT_CLOUD_LOG_LEVEL);
 
 BUILD_ASSERT(sizeof(CONFIG_MQTT_CLOUD_BROKER_HOST_NAME) > 1,
 		 "AWS IoT hostname not set");
