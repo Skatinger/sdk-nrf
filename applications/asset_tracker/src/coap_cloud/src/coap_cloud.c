@@ -5,6 +5,10 @@
 #include <random/rand32.h>
 #include <stdio.h>
 
+#include <net/coap_utils.h>
+#include <net/coap.h>
+// #include <subsys/net/lib/coap_utils/>
+
 #if defined(CONFIG_AWS_FOTA)
 #include <net/aws_fota.h>
 #endif
@@ -91,7 +95,9 @@ static char delete_rejected_topic[DELETE_REJECTED_TOPIC_LEN + 1];
 static char payload_buf[CONFIG_COAP_CLOUD_COAP_PAYLOAD_BUFFER_LEN];
 
 // static struct coap_client client;
-static struct sockaddr_storage broker;
+// static struct sockaddr_storage broker;
+static struct sockaddr_in broker; // TODO use ipv6 eventually
+static int sock;
 
 #if defined(CONFIG_CLOUD_API)
 static struct cloud_backend *coap_cloud_backend;
@@ -535,91 +541,130 @@ static void aws_fota_cb_handler(struct aws_fota_event *fota_evt)
 // 	// }
 // }
 
-#if defined(CONFIG_COAP_CLOUD_STATIC_IPV4)
-static int broker_init(void)
-{
-	struct sockaddr_in *broker4 =
-		((struct sockaddr_in *)&broker);
+static struct sockaddr_in parse_ip_address(int port, char *ip_address) {
+  struct sockaddr_in addr;
+	// struct sockaddr_storage addr;
 
-	inet_pton(AF_INET, CONFIG_COAP_CLOUD_STATIC_IPV4_ADDR,
-		  &broker->sin_addr);
-	broker4->sin_family = AF_INET;
-	broker4->sin_port = htons(CONFIG_COAP_CLOUD_PORT);
+  memset(&addr, '0', sizeof(addr)); // init to zero
 
-	LOG_DBG("IPv4 Address %s", log_strdup(CONFIG_COAP_CLOUD_STATIC_IPV4_ADDR));
+  // convert to usable address
+  if (inet_pton(AF_INET, ip_address, &addr.sin_addr) <= 0) {
+    printf("\n IP parsing failed\n");
+    exit(EXIT_FAILURE);
+  }
 
-	return 0;
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons(port);
+
+  return addr;
 }
-#else
-static int broker_init(void)
-{
+
+// #if defined(CONFIG_COAP_CLOUD_STATIC_IPV4)
+// static int broker_init(void)
+// {
+//
+// 	printk("hello from broker_init\n");
+// 	struct sockaddr_in *broker4 =
+// 		((struct sockaddr_in *)&broker);
+//
+// 	inet_pton(AF_INET, CONFIG_COAP_CLOUD_STATIC_IPV4_ADDR,
+// 		  &broker->sin_addr);
+// 	broker4->sin_family = AF_INET;
+// 	broker4->sin_port = htons(CONFIG_COAP_CLOUD_PORT);
+//
+// 	LOG_DBG("IPv4 Address %s", log_strdup(CONFIG_COAP_CLOUD_STATIC_IPV4_ADDR));
+//
+// 	return 0;
+// }
+// #else
+static int broker_init(void) {
+
 	int err;
-	struct addrinfo *result;
-	struct addrinfo *addr;
-	struct addrinfo hints = {
-		.ai_family = AWS_AF_FAMILY,
-		.ai_socktype = SOCK_STREAM
-	};
+	// struct addrinfo *result;
+	// struct addrinfo *addr;
+	// struct addrinfo hints = {
+	// 	.ai_family = AF_INET,
+	// 	.ai_socktype = SOCK_STREAM
+	// };
 
-	err = getaddrinfo(CONFIG_COAP_CLOUD_BROKER_HOST_NAME,
-			  NULL, &hints, &result);
-	if (err) {
-		LOG_ERR("getaddrinfo, error %d", err);
-		return -ECHILD;
-	}
+	// printf("trying to connect to host: %s\n", CONFIG_COAP_CLOUD_BROKER_HOST_NAME);
 
-	addr = result;
 
-	while (addr != NULL) {
-		if ((addr->ai_addrlen == sizeof(struct sockaddr_in)) &&
-		    (AWS_AF_FAMILY == AF_INET)) {
-			struct sockaddr_in *broker4 =
-				((struct sockaddr_in *)&broker);
-			char ipv4_addr[NET_IPV4_ADDR_LEN];
+	// err = getaddrinfo(CONFIG_COAP_CLOUD_BROKER_HOST_NAME,
+	// 		  NULL, &hints, &result);
+	// if (err) {
+	// 	LOG_ERR("getaddrinfo, error %d", err);
+	// 	return -ECHILD;
+	// }
 
-			broker4->sin_addr.s_addr =
-				((struct sockaddr_in *)addr->ai_addr)
-				->sin_addr.s_addr;
-			broker4->sin_family = AF_INET;
-			broker4->sin_port = htons(CONFIG_COAP_CLOUD_PORT);
+	// addr = result;
 
-			inet_ntop(AF_INET, &broker4->sin_addr.s_addr, ipv4_addr,
-				  sizeof(ipv4_addr));
-			LOG_DBG("IPv4 Address found %s", log_strdup(ipv4_addr));
-			break;
-		} else if ((addr->ai_addrlen == sizeof(struct sockaddr_in6)) &&
-			   (AWS_AF_FAMILY == AF_INET6)) {
-			struct sockaddr_in6 *broker6 =
-				((struct sockaddr_in6 *)&broker);
-			char ipv6_addr[NET_IPV6_ADDR_LEN];
+	// while (addr != NULL) {
 
-			memcpy(broker6->sin6_addr.s6_addr,
-			       ((struct sockaddr_in6 *)addr->ai_addr)
-			       ->sin6_addr.s6_addr,
-			       sizeof(struct in6_addr));
-			broker6->sin6_family = AF_INET6;
-			broker6->sin6_port = htons(CONFIG_COAP_CLOUD_PORT);
+		char *ip_address = "127.0.0.1";
+		broker = parse_ip_address(5683, ip_address);
 
-			inet_ntop(AF_INET6, &broker6->sin6_addr.s6_addr,
-				  ipv6_addr, sizeof(ipv6_addr));
-			LOG_DBG("IPv4 Address found %s", log_strdup(ipv6_addr));
-			break;
-		}
+		sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP); //iproto_ip
+	  if (sock < 0) {
+	    printk("Failed to create CoAP socket: %d.\n", errno);
+	    return -errno;
+	  }
 
-		LOG_DBG("ai_addrlen = %u should be %u or %u",
-			(unsigned int)addr->ai_addrlen,
-			(unsigned int)sizeof(struct sockaddr_in),
-			(unsigned int)sizeof(struct sockaddr_in6));
+		err = connect(sock, (struct sockaddr *)&broker,
+	      sizeof(struct sockaddr_in));
+	  if (err < 0) {
+	    printk("Connect failed : %d\n", errno);
+	    return -errno;
+	  }
 
-		addr = addr->ai_next;
-		break;
-	}
 
-	freeaddrinfo(result);
+
+		// if ((addr->ai_addrlen == sizeof(struct sockaddr_in)) &&
+		    // (AWS_AF_FAMILY == AF_INET)) {
+			// struct sockaddr_in *broker4 = ((struct sockaddr_in *)&broker);
+			// char ipv4_addr[NET_IPV4_ADDR_LEN];
+			//
+			// broker4->sin_addr.s_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr.s_addr;
+			// broker4->sin_family = AF_INET;
+			// broker4->sin_port = htons(CONFIG_COAP_CLOUD_PORT);
+			//
+			// inet_ntop(AF_INET, &broker4->sin_addr.s_addr, ipv4_addr,
+			// 	  sizeof(ipv4_addr));
+			// LOG_DBG("IPv4 Address found %s", log_strdup(ipv4_addr));
+			// break;
+		// } else if ((addr->ai_addrlen == sizeof(struct sockaddr_in6)) &&
+		// 	   (AWS_AF_FAMILY == AF_INET6)) {
+		// 	struct sockaddr_in6 *broker6 =
+		// 		((struct sockaddr_in6 *)&broker);
+		// 	char ipv6_addr[NET_IPV6_ADDR_LEN];
+		//
+		// 	memcpy(broker6->sin6_addr.s6_addr,
+		// 	       ((struct sockaddr_in6 *)addr->ai_addr)
+		// 	       ->sin6_addr.s6_addr,
+		// 	       sizeof(struct in6_addr));
+		// 	broker6->sin6_family = AF_INET6;
+		// 	broker6->sin6_port = htons(CONFIG_COAP_CLOUD_PORT);
+		//
+		// 	inet_ntop(AF_INET6, &broker6->sin6_addr.s6_addr,
+		// 		  ipv6_addr, sizeof(ipv6_addr));
+		// 	LOG_DBG("IPv4 Address found %s", log_strdup(ipv6_addr));
+		// 	break;
+		// }
+
+		// LOG_DBG("ai_addrlen = %u should be %u or %u",
+		// 	(unsigned int)addr->ai_addrlen,
+		// 	(unsigned int)sizeof(struct sockaddr_in),
+		// 	(unsigned int)sizeof(struct sockaddr_in6));
+		//
+		// addr = addr->ai_next;
+		// break;
+	// }
+
+	// freeaddrinfo(result);
 
 	return err;
 }
-#endif
+// #endif
 
 static int client_broker_init() // TODO add client here struct coap_client *const client)
 {
@@ -628,6 +673,7 @@ static int client_broker_init() // TODO add client here struct coap_client *cons
 	// coap_client_init(client);
 	//
 	err = broker_init();
+	printk("got to brokerInit\n");
 	// if (err) {
 	// 	return err;
 	// }
@@ -808,21 +854,28 @@ int coap_cloud_connect(struct coap_cloud_config *const config)
 {
 	int err;
 
+	printk("now in coap cloud connect\n");
+
 	if (IS_ENABLED(CONFIG_COAP_CLOUD_CONNECTION_POLL_THREAD)) {
 		err = connection_poll_start();
+		printk("got to connection_poll_start\n");
 	} else {
+		printk("landed in else of poll_start\n");
 		atomic_set(&disconnect_requested, 0);
-
-		err = client_broker_init(); // (&client);
+		printk("now with client_broker_init start\n");
+		err = client_broker_init();
 		if (err) {
 			LOG_ERR("client_broker_init, error: %d", err);
 			return err;
 		}
 
 		// err = mqtt_connect(&client);
-		if (err) {
-			LOG_ERR("mqtt_connect, error: %d", err);
-		}
+		// err = coap_connect();
+		// if (err) {
+		// 	LOG_ERR("coap_connect, error: %d", err);
+		// }
+
+		printk("error in coap_cloud_connect: %d\n", err);
 
 		err = connect_error_translate(err);
 
@@ -831,6 +884,7 @@ int coap_cloud_connect(struct coap_cloud_config *const config)
 #endif
 	}
 
+  printk("ok, error is: %d\n", err);
 	return err;
 }
 
@@ -859,22 +913,23 @@ int coap_cloud_connect(struct coap_cloud_config *const config)
 // 	return 0;
 // }
 
+
 int coap_cloud_init(const struct coap_cloud_config *const config,
 		 coap_cloud_evt_handler_t event_handler)
 {
 	int err;
 
-	if (IS_ENABLED(CONFIG_COAP_CLOUD_CLIENT_ID_APP) &&
-	    config->client_id_len >= CONFIG_COAP_CLOUD_CLIENT_ID_MAX_LEN) {
-		LOG_ERR("Client ID string too long");
-		return -EMSGSIZE;
-	}
+	// if (IS_ENABLED(CONFIG_COAP_CLOUD_CLIENT_ID_APP) &&
+	//     config->client_id_len >= CONFIG_COAP_CLOUD_CLIENT_ID_MAX_LEN) {
+	// 	LOG_ERR("Client ID string too long");
+	// 	return -EMSGSIZE;
+	// }
 
-	if (IS_ENABLED(CONFIG_COAP_CLOUD_CLIENT_ID_APP) &&
-	    config->client_id == NULL) {
-		LOG_ERR("Client ID not set in the application");
-		return -ENODATA;
-	}
+	// if (IS_ENABLED(CONFIG_COAP_CLOUD_CLIENT_ID_APP) &&
+	//     config->client_id == NULL) {
+	// 	LOG_ERR("Client ID not set in the application");
+	// 	return -ENODATA;
+	// }
 
 	// err = mqtt_cloud_topics_populate(config->client_id, config->client_id_len);
 	// if (err) {
@@ -882,19 +937,31 @@ int coap_cloud_init(const struct coap_cloud_config *const config,
 	// 	return err;
 	// }
 
-#if defined(CONFIG_AWS_FOTA)
-	err = aws_fota_init(&client, aws_fota_cb_handler);
-	if (err) {
-		LOG_ERR("aws_fota_init, error: %d", err);
-		return err;
-	}
-#endif
+  // initialize coap client on ipv4
+	// coap_init(AF_INET);
+
+	// struct coap_packet request;
+  // printk("trying to init client\n");
+	// if (client_init() != 0) {
+  //   printk("Failed to initialize CoAP client\n");
+  //   return;
+  // }
+
+
+
+// #if defined(CONFIG_AWS_FOTA)
+// 	err = aws_fota_init(&client, aws_fota_cb_handler);
+// 	if (err) {
+// 		LOG_ERR("aws_fota_init, error: %d", err);
+// 		return err;
+// 	}
+// #endif
 
 #if !defined(CONFIG_CLOUD_API)
 	module_evt_handler = event_handler;
 #endif
 
-	return err;
+	return 0; //err;
 }
 // TODO might need this later
 // #if defined(CONFIG_COAP_CLOUD_CONNECTION_POLL_THREAD)
@@ -1074,7 +1141,7 @@ static int c_init(const struct cloud_backend *const backend,
 		  cloud_evt_handler_t handler)
 {
 
-    printk("hello, i am initilaizing and probably then crashing\n");
+  printk("hello, i am initilaizing and probably then crashing\n");
 	backend->config->handler = handler;
 	coap_cloud_backend = (struct cloud_backend *)backend;
 
@@ -1082,7 +1149,7 @@ static int c_init(const struct cloud_backend *const backend,
 		.client_id = backend->config->id,
 		.client_id_len = backend->config->id_len
 	};
-
+  printk("nearly at the end of c_init, returning coap_cloud_init\n");
 	return coap_cloud_init(&config, NULL);
 }
 
@@ -1113,35 +1180,8 @@ static int c_disconnect(const struct cloud_backend *const backend)
 static int c_send(const struct cloud_backend *const backend,
 		  const struct cloud_msg *const msg)
 {
-	// struct mqtt_cloud_data tx_data = {
-	// 	.ptr = msg->buf,
-	// 	.len = msg->len,
-	// 	.qos = msg->qos
-	// };
 
-	// switch (msg->endpoint.type) {
-	// case CLOUD_EP_TOPIC_STATE:
-	// 	tx_data.topic.str = get_topic;
-	// 	tx_data.topic.len = strlen(get_topic);
-	// 	break;
-	// case CLOUD_EP_TOPIC_MSG:
-	// 	tx_data.topic.str = update_topic;
-	// 	tx_data.topic.len = strlen(update_topic);
-	// 	break;
-	// case CLOUD_EP_TOPIC_STATE_DELETE:
-	// 	tx_data.topic.str = delete_topic;
-	// 	tx_data.topic.len = strlen(delete_topic);
-	// 	break;
-	// default:
-	// 	if (msg->endpoint.str == NULL || msg->endpoint.len == 0) {
-	// 		LOG_ERR("No application topic present in msg");
-	// 		return -ENODATA;
-	// 	}
-	//
-	// 	tx_data.topic.str = msg->endpoint.str;
-	// 	tx_data.topic.len = msg->endpoint.len;
-	// 	break;
-	// }
+	printk("c_send called\n");
 
 	return coap_cloud_send(); // (&tx_data);
 }
@@ -1153,6 +1193,7 @@ static int c_input(const struct cloud_backend *const backend)
 
 static int c_ping(const struct cloud_backend *const backend)
 {
+	printk("c_ping called\n");
 	return coap_cloud_ping();
 }
 

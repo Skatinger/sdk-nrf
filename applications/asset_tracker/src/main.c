@@ -401,6 +401,7 @@ void cloud_connect_error_handler(enum cloud_connect_result err)
 	char *backend_name = "invalid";
 
 	if (err == CLOUD_CONNECT_RES_SUCCESS) {
+		printk("weee we can return!\n");
 		return;
 	}
 
@@ -1758,6 +1759,7 @@ void main(void)
 #endif
 
 	cloud_api_init();
+	printk("got after cloud api init\n");
 
 #if defined(CONFIG_USE_UI_MODULE)
 	ui_init(ui_evt_handler);
