@@ -310,6 +310,7 @@ void error_handler(enum error_type err_type, int err_code)
 	atomic_set(&cloud_association, CLOUD_ASSOCIATION_STATE_INIT);
 
 	if (err_type == ERROR_CLOUD) {
+		printk("showdown modem initialized with ERROR_CLOUD: %d and code: %d\n", err_type, err_code);
 		shutdown_modem();
 	}
 
@@ -540,6 +541,7 @@ static void cloud_connect_work_fn(struct k_work *work)
 
 	/* Attempt cloud connection */
 	ret = cloud_connect(cloud_backend);
+	printk("result from cloud connect: %d, %d\n", ret, CLOUD_CONNECT_RES_SUCCESS);
 	if (ret != CLOUD_CONNECT_RES_SUCCESS) {
 		k_delayed_work_cancel(&cloud_reboot_work);
 		/* Will not return from this function.
@@ -549,11 +551,12 @@ static void cloud_connect_work_fn(struct k_work *work)
 		cloud_connect_error_handler(ret);
 	} else {
 		LOG_INF("Cloud connection request sent.");
+                printk("err: %d  %d\n", CLOUD_CONNECT_RES_SUCCESS, ret);
 		LOG_INF("Connection response timeout is set to %d seconds.",
 		       CLOUD_CONNACK_WAIT_DURATION / MSEC_PER_SEC);
-		k_delayed_work_submit_to_queue(&application_work_q,
-					&cloud_reboot_work,
-					K_MSEC(CLOUD_CONNACK_WAIT_DURATION));
+		// k_delayed_work_submit_to_queue(&application_work_q,
+					// &cloud_reboot_work,
+					// K_MSEC(CLOUD_CONNACK_WAIT_DURATION));
 	}
 }
 
@@ -1234,6 +1237,7 @@ static void sensor_data_send(struct cloud_channel_data *data)
 /**@brief Reboot the device if CONNACK has not arrived. */
 static void cloud_reboot_handler(struct k_work *work)
 {
+	printk("now in cloud_reboot_handler which handles the cloud_reboot_work: %d\n", ERROR_CLOUD);
 	error_handler(ERROR_CLOUD, -ETIMEDOUT);
 }
 
@@ -1405,6 +1409,8 @@ void cloud_event_handler(const struct cloud_backend *const backend,
 
 void connection_evt_handler(const struct cloud_event *const evt)
 {
+
+	printk("in connection evt handler, got cloud event");
 	if (evt->type == CLOUD_EVT_CONNECTING) {
 		LOG_INF("CLOUD_EVT_CONNECTING");
 		ui_led_set_pattern(UI_CLOUD_CONNECTING);
@@ -1765,6 +1771,7 @@ void main(void)
 	ui_init(ui_evt_handler);
 #endif
 	work_init();
+	printk("initialized work");
 
 	while (modem_configure() != 0) {
 		LOG_WRN("Failed to establish LTE connection.");
@@ -1777,6 +1784,6 @@ void main(void)
 	LOG_INF("Waiting for LWM2M carrier to complete initialization...");
 	k_sem_take(&cloud_ready_to_connect, K_FOREVER);
 #endif
-
+  printk("at connect_to_cloud in Main\n");
 	connect_to_cloud(0);
 }

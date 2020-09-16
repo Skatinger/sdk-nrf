@@ -15,10 +15,11 @@
 
 #include <logging/log.h>
 
-LOG_MODULE_REGISTER(coap_cloud, CONFIG_COAP_CLOUD_LOG_LEVEL);
+LOG_MODULE_REGISTER(coap_cloud, CONFIG_NRF_CLOUD_LOG_LEVEL);
+// LOG_MODULE_REGISTER(coap_cloud, 0);
 
-BUILD_ASSERT(sizeof(CONFIG_COAP_CLOUD_BROKER_HOST_NAME) > 1,
-		 "AWS IoT hostname not set");
+//BUILD_ASSERT(sizeof(CONFIG_NRF_CLOUD_BROKER_HOST_NAME) > 1,
+	//	 "AWS IoT hostname not set");
 
 #if defined(CONFIG_COAP_CLOUD_IPV6)
 #define AWS_AF_FAMILY AF_INET6
@@ -92,9 +93,9 @@ static char delete_rejected_topic[DELETE_REJECTED_TOPIC_LEN + 1];
 
 // static char rx_buffer[CONFIG_COAP_CLOUD_COAP_RX_TX_BUFFER_LEN];
 // static char tx_buffer[CONFIG_COAP_CLOUD_COAP_RX_TX_BUFFER_LEN];
-static char payload_buf[CONFIG_COAP_CLOUD_COAP_PAYLOAD_BUFFER_LEN];
+// static char payload_buf[CONFIG_COAP_CLOUD_COAP_PAYLOAD_BUFFER_LEN];
 
-// static struct coap_client client;
+static struct coap_client client;
 // static struct sockaddr_storage broker;
 static struct sockaddr_in broker; // TODO use ipv6 eventually
 static int sock;
@@ -115,7 +116,9 @@ static K_SEM_DEFINE(connection_poll_sem, 0, 1);
 #if !defined(CONFIG_CLOUD_API)
 static void coap_cloud_notify_event(const struct coap_cloud_evt *evt)
 {
+	printk("coap_cloud_notify_event with event");
 	if ((module_evt_handler != NULL) && (evt != NULL)) {
+		printk("even got to if\n");
 		module_evt_handler(evt);
 	}
 }
@@ -398,148 +401,168 @@ static void aws_fota_cb_handler(struct aws_fota_event *fota_evt)
 // 	// return mqtt_readall_publish_payload(c, payload_buf, length);
 // }
 
-// static void coap_evt_handler() // TODO add client here struct coap_client *const c)
-// 			     // const struct mqtt_evt *mqtt_evt)
-// {
-// 	// int err;
-// // #if defined(CONFIG_CLOUD_API)
-// // 	struct cloud_backend_config *config = coap_cloud_backend->config;
-// // 	struct cloud_event cloud_evt = { 0 };
-// // #else
-// // 	struct coap_cloud_evt coap_cloud_evt = { 0 };
-// // #endif
+static void coap_evt_handler(struct coap_client *const c,
+															const struct coap_evt *coap_evt) // TODO add client here struct coap_client *const c)
+			     // const struct mqtt_evt *mqtt_evt)
+{
+	int err;
+#if defined(CONFIG_CLOUD_API)
+	struct cloud_backend_config *config = coap_cloud_backend->config;
+	struct cloud_event cloud_evt = { 0 };
+#else
+	struct coap_cloud_evt coap_cloud_evt = { 0 };
+#endif
+
+#if defined(CONFIG_AWS_FOTA)
+	err = aws_fota_mqtt_evt_handler(c, coap_evt);
+	if (err == 0) {
+		/* Event handled by FOTA library so it can be skipped. */
+		return;
+	} else if (err < 0) {
+		LOG_ERR("aws_fota_mqtt_evt_handler, error: %d", err);
+		LOG_DBG("Disconnecting COAP client...");
+
+		atomic_set(&disconnect_requested, 1);
+		err = coap_disconnect(c);
+		if (err) {
+			LOG_ERR("Could not disconnect: %d", err);
+		}
+	}
+#endif
+
+  printf("in coap_evt_handler with type of event \n");
+  // TODO switch over possible events (if any?)
+// 	switch (coap_evt->type) {
+// 	case COAP_EVT_CONNACK:
 //
-// // #if defined(CONFIG_AWS_FOTA)
-// // 	err = aws_fota_mqtt_evt_handler(c, mqtt_evt);
-// // 	if (err == 0) {
-// // 		/* Event handled by FOTA library so it can be skipped. */
-// // 		return;
-// // 	} else if (err < 0) {
-// // 		LOG_ERR("aws_fota_mqtt_evt_handler, error: %d", err);
-// // 		LOG_DBG("Disconnecting COAP client...");
-// //
-// // 		atomic_set(&disconnect_requested, 1);
-// // 		err = coap_disconnect(c);
-// // 		if (err) {
-// // 			LOG_ERR("Could not disconnect: %d", err);
-// // 		}
-// // 	}
-// // #endif
-//
-// // 	switch (mqtt_evt->type) {
-// // 	case COAP_EVT_CONNACK:
-// //
-// // 		if (mqtt_evt->param.connack.return_code) {
-// // 			LOG_ERR("COAP_EVT_CONNACK, error: %d",
-// // 				mqtt_evt->param.connack.return_code);
-// // #if defined(CONFIG_CLOUD_API)
-// // 			cloud_evt.data.err =
-// // 				mqtt_evt->param.connack.return_code;
-// // 			cloud_evt.type = CLOUD_EVT_ERROR;
-// // 			cloud_notify_event(coap_cloud_backend, &cloud_evt,
-// // 				   config->user_data);
-// // #else
-// // 			coap_cloud_evt.data.err =
-// // 				mqtt_evt->param.connack.return_code;
-// // 			coap_cloud_evt.type = COAP_CLOUD_EVT_ERROR;
-// // 			coap_cloud_notify_event(&coap_cloud_evt);
-// // #endif
-// // 			break;
-// // 		}
-//
-// 		// if (!mqtt_evt->param.connack.session_present_flag) {
-// 		// 	topic_subscribe();
-// 		// }
-//
-// 		// LOG_DBG("COAP client connected!");
-//
-// // #if defined(CONFIG_CLOUD_API)
-// // 		cloud_evt.data.persistent_session =
-// // 				   mqtt_evt->param.connack.session_present_flag;
-// // 		cloud_evt.type = CLOUD_EVT_CONNECTED;
-// // 		cloud_notify_event(coap_cloud_backend, &cloud_evt,
-// // 				   config->user_data);
-// // 		cloud_evt.type = CLOUD_EVT_READY;
-// // 		cloud_notify_event(coap_cloud_backend, &cloud_evt,
-// // 				   config->user_data);
-// // #else
-// // 		coap_cloud_evt.data.persistent_session =
-// // 				   mqtt_evt->param.connack.session_present_flag;
-// // 		coap_cloud_evt.type = COAP_CLOUD_EVT_CONNECTED;
-// // 		coap_cloud_notify_event(&coap_cloud_evt);
-// // 		coap_cloud_evt.type = COAP_CLOUD_EVT_READY;
-// // 		coap_cloud_notify_event(&coap_cloud_evt);
-// // #endif
-// 	// 	break;
-// 	// case COAP_EVT_DISCONNECT:
-// 	// 	LOG_DBG("COAP_EVT_DISCONNECT: result = %d", mqtt_evt->result);
-// //
-// // #if defined(CONFIG_CLOUD_API)
-// // 		cloud_evt.type = CLOUD_EVT_DISCONNECTED;
-// // 		cloud_notify_event(coap_cloud_backend, &cloud_evt,
-// // 				   config->user_data);
-// // #else
-// // 		coap_cloud_evt.type = COAP_CLOUD_EVT_DISCONNECTED;
-// // 		coap_cloud_notify_event(&coap_cloud_evt);
-// // #endif
-// 	// 	break;
-// 	// case COAP_EVT_PUBLISH: {
-// 	// 	const struct mqtt_publish_param *p = &mqtt_evt->param.publish;
-// 	//
-// 	// 	LOG_DBG("COAP_EVT_PUBLISH: id = %d len = %d ",
-// 	// 		p->message_id,
-// 	// 		p->message.payload.len);
-// 	//
-// 	// 	err = publish_get_payload(c, p->message.payload.len);
-// 	// 	if (err) {
-// 	// 		LOG_ERR("publish_get_payload, error: %d", err);
-// 	// 		break;
-// 	// 	}
-// 	//
-// 	// 	if (p->message.topic.qos == COAP_QOS_1_AT_LEAST_ONCE) {
-// 	// 		const struct mqtt_puback_param ack = {
-// 	// 			.message_id = p->message_id
-// 	// 		};
-// 	//
-// 	// 		mqtt_publish_qos1_ack(c, &ack);
-// 	// 	}
-// //
-// // #if defined(CONFIG_CLOUD_API)
-// // 		cloud_evt.type = CLOUD_EVT_DATA_RECEIVED;
-// // 		cloud_evt.data.msg.buf = payload_buf;
-// // 		cloud_evt.data.msg.len = p->message.payload.len;
-// // 		cloud_evt.data.msg.endpoint.type = CLOUD_EP_TOPIC_MSG;
-// // 		cloud_evt.data.msg.endpoint.str = p->message.topic.topic.utf8;
-// // 		cloud_evt.data.msg.endpoint.len = p->message.topic.topic.size;
-// //
-// // 		cloud_notify_event(coap_cloud_backend, &cloud_evt,
-// // 				   config->user_data);
-// // #else
-// // 		coap_cloud_evt.type = COAP_CLOUD_EVT_DATA_RECEIVED;
-// // 		coap_cloud_evt.data.msg.ptr = payload_buf;
-// // 		coap_cloud_evt.data.msg.len = p->message.payload.len;
-// // 		coap_cloud_evt.data.msg.topic.type = COAP_CLOUD_SHADOW_TOPIC_UNKNOWN;
-// // 		coap_cloud_evt.data.msg.topic.str = p->message.topic.topic.utf8;
-// // 		coap_cloud_evt.data.msg.topic.len = p->message.topic.topic.size;
-// //
-// // 		coap_cloud_notify_event(&coap_cloud_evt);
-// // #endif
-// 	//
-// 	// } break;
-// 	// case COAP_EVT_PUBACK:
-// 	// 	LOG_DBG("COAP_EVT_PUBACK: id = %d result = %d",
-// 	// 		mqtt_evt->param.puback.message_id,
-// 	// 		mqtt_evt->result);
-// 	// 	break;
-// 	// case COAP_EVT_SUBACK:
-// 	// 	LOG_DBG("COAP_EVT_SUBACK: id = %d result = %d",
-// 	// 		mqtt_evt->param.suback.message_id,
-// 	// 		mqtt_evt->result);
-// 	// 	break;
-// 	// default:
-// 	// 	break;
-// 	// }
-// }
+// 		if (coap_evt->param.connack.return_code) {
+// 			LOG_ERR("COAP_EVT_CONNACK, error: %d",
+// 				coap_evt->param.connack.return_code);
+// #if defined(CONFIG_CLOUD_API)
+// 			cloud_evt.data.err =
+// 				coap_evt->param.connack.return_code;
+// 			cloud_evt.type = CLOUD_EVT_ERROR;
+// 			cloud_notify_event(coap_cloud_backend, &cloud_evt,
+// 				   config->user_data);
+// #else
+// 			coap_cloud_evt.data.err =
+// 				coap_evt->param.connack.return_code;
+// 			coap_cloud_evt.type = COAP_CLOUD_EVT_ERROR;
+// 			coap_cloud_notify_event(&coap_cloud_evt);
+// #endif
+// 			break;
+// 		}
+
+
+#if defined(CONFIG_CLOUD_API)
+// 			cloud_evt.data.err =
+// 				coap_evt->param.connack.return_code;
+// 			cloud_evt.type = CLOUD_EVT_ERROR;
+// 			cloud_notify_event(coap_cloud_backend, &cloud_evt,
+// 				   config->user_data);
+#else
+// 			coap_cloud_evt.data.err =
+// 				coap_evt->param.connack.return_code;
+  coap_cloud_evt.type = COAP_CLOUD_EVT_CONNECTED;
+	printk("notifying with coap_cloud_evt\n");
+	coap_cloud_notify_event(&coap_cloud_evt);
+#endif
+
+		// if (!coap_evt->param.connack.session_present_flag) {
+		// 	topic_subscribe();
+		// }
+
+		LOG_DBG("COAP client connected!");
+
+#if defined(CONFIG_CLOUD_API)
+		//cloud_evt.data.persistent_session =
+			//	   coap_evt->param.connack.session_present_flag;
+		cloud_evt.type = CLOUD_EVT_CONNECTED;
+		cloud_notify_event(coap_cloud_backend, &cloud_evt,
+				   config->user_data);
+		cloud_evt.type = CLOUD_EVT_READY;
+		cloud_notify_event(coap_cloud_backend, &cloud_evt,
+				   config->user_data);
+#else
+		// coap_cloud_evt.data.persistent_session =
+				   // coap_evt->param.connack.session_present_flag;
+		coap_cloud_evt.type = COAP_CLOUD_EVT_CONNECTED;
+		coap_cloud_notify_event(&coap_cloud_evt);
+		coap_cloud_evt.type = COAP_CLOUD_EVT_READY;
+		coap_cloud_notify_event(&coap_cloud_evt);
+#endif
+		//break;
+	//case COAP_CLOUD_EVT_DISCONNECT:
+		//LOG_DBG("COAP_EVT_DISCONNECT: result = %d", coap_evt->result);
+
+#if defined(CONFIG_CLOUD_API)
+		cloud_evt.type = CLOUD_EVT_DISCONNECTED;
+		cloud_notify_event(coap_cloud_backend, &cloud_evt,
+				   config->user_data);
+#else
+		coap_cloud_evt.type = COAP_CLOUD_EVT_DISCONNECTED;
+		coap_cloud_notify_event(&coap_cloud_evt);
+#endif
+	// break;
+	// case COAP_CLOUD_EVT_PUBLISH: {
+	// 	const struct mqtt_publish_param *p = &coap_evt->param.publish;
+	//
+	// 	LOG_DBG("COAP_EVT_PUBLISH: id = %d len = %d ",
+	// 		p->message_id,
+	// 		p->message.payload.len);
+	//
+	// 	err = publish_get_payload(c, p->message.payload.len);
+	// 	if (err) {
+	// 		LOG_ERR("publish_get_payload, error: %d", err);
+	// 		break;
+	// 	}
+	//
+	// 	if (p->message.topic.qos == COAP_QOS_1_AT_LEAST_ONCE) {
+	// 		const struct mqtt_puback_param ack = {
+	// 			.message_id = p->message_id
+	// 		};
+	//
+	// 		mqtt_publish_qos1_ack(c, &ack);
+	// 	}
+
+#if defined(CONFIG_CLOUD_API)
+		cloud_evt.type = CLOUD_EVT_DATA_RECEIVED;
+		// cloud_evt.data.msg.buf = payload_buf;
+		// cloud_evt.data.msg.len = p->message.payload.len;
+		// cloud_evt.data.msg.endpoint.type = CLOUD_EP_TOPIC_MSG;
+		// cloud_evt.data.msg.endpoint.str = p->message.topic.topic.utf8;
+		// cloud_evt.data.msg.endpoint.len = p->message.topic.topic.size;
+		// TODO implement version for COAP
+
+		cloud_notify_event(coap_cloud_backend, &cloud_evt,
+				   config->user_data);
+#else
+		coap_cloud_evt.type = COAP_CLOUD_EVT_DATA_RECEIVED;
+		printk("received data\n");
+		// coap_cloud_evt.data.msg.ptr = payload_buf;
+		// coap_cloud_evt.data.msg.len = p->message.payload.len;
+		// coap_cloud_evt.data.msg.topic.type = COAP_CLOUD_SHADOW_TOPIC_UNKNOWN;
+		// coap_cloud_evt.data.msg.topic.str = p->message.topic.topic.utf8;
+		// coap_cloud_evt.data.msg.topic.len = p->message.topic.topic.size;
+
+		coap_cloud_notify_event(&coap_cloud_evt);
+#endif
+
+	// } break;
+	// case COAP_EVT_PUBACK:
+	// 	LOG_DBG("COAP_EVT_PUBACK: id = %d result = %d",
+	// 		coap_evt->param.puback.message_id,
+	// 		coap_evt->result);
+	// 	break;
+	// case COAP_EVT_SUBACK:
+	// 	LOG_DBG("COAP_EVT_SUBACK: id = %d result = %d",
+	// 		coap_evt->param.suback.message_id,
+	// 		coap_evt->result);
+	// 	break;
+	// default:
+	// 	break;
+	// }
+}
 
 static struct sockaddr_in parse_ip_address(int port, char *ip_address) {
   struct sockaddr_in addr;
@@ -601,7 +624,9 @@ static int broker_init(void) {
 
 	// while (addr != NULL) {
 
-		char *ip_address = "127.0.0.1";
+	printk("in broker_init\n");
+
+		char *ip_address = "83.150.54.152";
 		broker = parse_ip_address(5683, ip_address);
 
 		sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP); //iproto_ip
@@ -661,25 +686,41 @@ static int broker_init(void) {
 	// }
 
 	// freeaddrinfo(result);
+  printk("Created broker sock: %d\n", sock);
+
+
+  // init_coap_client
+	client.sock = sock;
+	client.broker = &broker;
+
+	// should send connected event
+	printk("now gonna trigger COAP_CLOUD_EVENT_CONNECTED: %d\n", CLOUD_EVT_CONNECTED);
+
 
 	return err;
 }
 // #endif
 
-static int client_broker_init() // TODO add client here struct coap_client *const client)
+
+
+static int client_broker_init(void) //struct coap_client *const client) // TODO add client here struct coap_client *const client)
 {
 	int err = 0;
 	//
-	// coap_client_init(client);
+	// coap_client_init(&client); this is done in broker init
 	//
 	err = broker_init();
-	printk("got to brokerInit\n");
+	// printk("got to brokerInit\n");
 	// if (err) {
 	// 	return err;
 	// }
 
-	// client->broker			= &broker;
-	// client->evt_cb			= mqtt_evt_handler;
+  // pass the socket
+	client.broker			= &broker;
+	// pass the event handler
+	// client->event_handler			= coap_evt_handler;
+
+	// OLD stuff for mqtt client
 	// client->client_id.utf8		= (char *)client_id_buf;
 	// client->client_id.size		= strlen(client_id_buf);
 	// client->password		= NULL;
@@ -710,10 +751,10 @@ static int client_broker_init() // TODO add client here struct coap_client *cons
 
 static int connection_poll_start(void)
 {
-	if (atomic_get(&connection_poll_active)) {
-		LOG_DBG("Connection poll in progress");
-		return -EINPROGRESS;
-	}
+	// if (atomic_get(&connection_poll_active)) {
+	// 	LOG_DBG("Connection poll in progress");
+	// 	return -EINPROGRESS;
+	// }
 
 	atomic_set(&disconnect_requested, 0);
 	k_sem_give(&connection_poll_sem);
@@ -856,7 +897,8 @@ int coap_cloud_connect(struct coap_cloud_config *const config)
 
 	printk("now in coap cloud connect\n");
 
-	if (IS_ENABLED(CONFIG_COAP_CLOUD_CONNECTION_POLL_THREAD)) {
+	// if (IS_ENABLED(CONFIG_COAP_CLOUD_CONNECTION_POLL_THREAD)) {
+    if(1){
 		err = connection_poll_start();
 		printk("got to connection_poll_start\n");
 	} else {
@@ -864,6 +906,7 @@ int coap_cloud_connect(struct coap_cloud_config *const config)
 		atomic_set(&disconnect_requested, 0);
 		printk("now with client_broker_init start\n");
 		err = client_broker_init();
+
 		if (err) {
 			LOG_ERR("client_broker_init, error: %d", err);
 			return err;
@@ -880,7 +923,9 @@ int coap_cloud_connect(struct coap_cloud_config *const config)
 		err = connect_error_translate(err);
 
 #if !defined(CONFIG_CLOUD_API)
+                // no need for tls TODO maybe should add socket here..
 		config->socket = client.transport.tls.sock;
+		// config->socket = sock;
 #endif
 	}
 
@@ -919,17 +964,17 @@ int coap_cloud_init(const struct coap_cloud_config *const config,
 {
 	int err;
 
-	// if (IS_ENABLED(CONFIG_COAP_CLOUD_CLIENT_ID_APP) &&
-	//     config->client_id_len >= CONFIG_COAP_CLOUD_CLIENT_ID_MAX_LEN) {
-	// 	LOG_ERR("Client ID string too long");
-	// 	return -EMSGSIZE;
-	// }
+	if (IS_ENABLED(CONFIG_COAP_CLOUD_CLIENT_ID_APP) &&
+	    config->client_id_len >= CONFIG_CLIENT_ID_MAX_LEN) {
+		LOG_ERR("Client ID string too long");
+		return -EMSGSIZE;
+	}
 
-	// if (IS_ENABLED(CONFIG_COAP_CLOUD_CLIENT_ID_APP) &&
-	//     config->client_id == NULL) {
-	// 	LOG_ERR("Client ID not set in the application");
-	// 	return -ENODATA;
-	// }
+	if (IS_ENABLED(CONFIG_COAP_CLOUD_CLIENT_ID_APP) &&
+	    config->client_id == NULL) {
+		LOG_ERR("Client ID not set in the application");
+		return -ENODATA;
+	}
 
 	// err = mqtt_cloud_topics_populate(config->client_id, config->client_id_len);
 	// if (err) {
@@ -939,6 +984,8 @@ int coap_cloud_init(const struct coap_cloud_config *const config,
 
   // initialize coap client on ipv4
 	// coap_init(AF_INET);
+
+	// TODO open coap socket here
 
 	// struct coap_packet request;
   // printk("trying to init client\n");
@@ -956,173 +1003,179 @@ int coap_cloud_init(const struct coap_cloud_config *const config,
 // 		return err;
 // 	}
 // #endif
-
+printk("is it defined ............?\n");
 #if !defined(CONFIG_CLOUD_API)
+printk("in coap_cloud_init, CONFIG_CLOUD_API is not defined\n");
 	module_evt_handler = event_handler;
 #endif
 
-	return 0; //err;
+	return 0; //err
 }
+
 // TODO might need this later
-// #if defined(CONFIG_COAP_CLOUD_CONNECTION_POLL_THREAD)
-// void mqtt_cloud_cloud_poll(void)
-// {
-// 	int err;
-// 	struct pollfd fds[1];
-// #if defined(CONFIG_CLOUD_API)
-// 	struct cloud_event cloud_evt = {
-// 		.type = CLOUD_EVT_DISCONNECTED,
-// 		.data = { .err = CLOUD_DISCONNECT_MISC}
-// 	};
-// #else
-// 	struct coap_cloud_evt cloud_evt = {
-// 		.type = COAP_CLOUD_EVT_DISCONNECTED,
-// 		.data = { .err = COAP_CLOUD_DISCONNECT_MISC}
-// 	};
-// #endif
-//
-// start:
-// 	k_sem_take(&connection_poll_sem, K_FOREVER);
-// 	atomic_set(&connection_poll_active, 1);
-//
-// #if defined(CONFIG_CLOUD_API)
-// 	cloud_evt.data.err = CLOUD_CONNECT_RES_SUCCESS;
-// 	cloud_evt.type = CLOUD_EVT_CONNECTING;
-// 	cloud_notify_event(coap_cloud_backend, &cloud_evt, NULL);
-// #else
-// 	cloud_evt.data.err = COAP_CLOUD_CONNECT_RES_SUCCESS;
-// 	cloud_evt.type = COAP_CLOUD_EVT_CONNECTING;
-// 	coap_cloud_notify_event(&cloud_evt);
-// #endif
-//
-// 	// err = client_broker_init(&client);
-// 	if (err) {
-// 		LOG_ERR("client_broker_init, error: %d", err);
-// 	}
-//
-// 	// err = mqtt_connect(&client);
-// 	if (err) {
-// 		LOG_ERR("mqtt_connect, error: %d", err);
-// 	}
-//
-// 	err = connect_error_translate(err);
-//
-// #if defined(CONFIG_CLOUD_API)
-// 	if (err != CLOUD_CONNECT_RES_SUCCESS) {
-// 		cloud_evt.data.err = err;
-// 		cloud_evt.type = CLOUD_EVT_CONNECTING;
-// 		cloud_notify_event(coap_cloud_backend, &cloud_evt, NULL);
-// 		goto reset;
-// 	} else {
-// 		LOG_DBG("Cloud connection request sent.");
-// 	}
-// #else
-// 	if (err != COAP_CLOUD_CONNECT_RES_SUCCESS) {
-// 		cloud_evt.data.err = err;
-// 		cloud_evt.type = COAP_CLOUD_EVT_CONNECTING;
-// 		coap_cloud_notify_event(&cloud_evt);
-// 		goto reset;
-// 	} else {
-// 		LOG_DBG("AWS broker connection request sent.");
-// 	}
-// #endif
-//
-// 	fds[0].fd = client.transport.tls.sock;
-// 	fds[0].events = POLLIN;
-//
-// 	/* Only disconnect events will occur below */
-// #if defined(CONFIG_CLOUD_API)
-// 	cloud_evt.type = CLOUD_EVT_DISCONNECTED;
-// #else
-// 	cloud_evt.type = COAP_CLOUD_EVT_DISCONNECTED;
-// #endif
-//
-// 	while (true) {
-// 		err = poll(fds, ARRAY_SIZE(fds), COAP_CLOUD_POLL_TIMEOUT_MS);
-//
-// 		if (err == 0) {
-// 			if (coap_cloud_keepalive_time_left() <
-// 			    COAP_CLOUD_POLL_TIMEOUT_MS) {
-// 				coap_cloud_ping();
-// 			}
-// 			continue;
-// 		}
-//
-// 		if ((fds[0].revents & POLLIN) == POLLIN) {
-// 			coap_cloud_input();
-// 			continue;
-// 		}
-//
-// 		if (err < 0) {
-// 			LOG_ERR("poll() returned an error: %d", err);
-// #if defined(CONFIG_CLOUD_API)
-// 			cloud_evt.data.err = CLOUD_DISCONNECT_MISC;
-// #else
-// 			cloud_evt.data.err = COAP_CLOUD_DISCONNECT_MISC;
-// #endif
-// 			break;
-// 		}
-//
-// 		if (atomic_get(&disconnect_requested)) {
-// 			atomic_set(&disconnect_requested, 0);
-// 			LOG_DBG("Expected disconnect event.");
-// #if defined(CONFIG_CLOUD_API)
-// 			cloud_evt.data.err = CLOUD_DISCONNECT_USER_REQUEST;
-// 			cloud_notify_event(coap_cloud_backend, &cloud_evt, NULL);
-// #else
-// 			cloud_evt.data.err = COAP_CLOUD_DISCONNECT_MISC;
-// 			coap_cloud_notify_event(&cloud_evt);
-// #endif
-// 			goto reset;
-// 		}
-//
-// 		if ((fds[0].revents & POLLNVAL) == POLLNVAL) {
-// 			LOG_DBG("Socket error: POLLNVAL");
-// 			LOG_DBG("The cloud socket was unexpectedly closed.");
-// #if defined(CONFIG_CLOUD_API)
-// 			cloud_evt.data.err = CLOUD_DISCONNECT_INVALID_REQUEST;
-// #else
-// 			cloud_evt.data.err = COAP_CLOUD_DISCONNECT_INVALID_REQUEST;
-// #endif
-// 			break;
-// 		}
-//
-// 		if ((fds[0].revents & POLLHUP) == POLLHUP) {
-// 			LOG_DBG("Socket error: POLLHUP");
-// 			LOG_DBG("Connection was closed by the cloud.");
-// #if defined(CONFIG_CLOUD_API)
-// 			cloud_evt.data.err = CLOUD_DISCONNECT_CLOSED_BY_REMOTE;
-// #else
-// 			cloud_evt.data.err =
-// 					COAP_CLOUD_DISCONNECT_CLOSED_BY_REMOTE;
-// #endif
-// 			break;
-// 		}
-//
-// 		if ((fds[0].revents & POLLERR) == POLLERR) {
-// 			LOG_DBG("Socket error: POLLERR");
-// 			LOG_DBG("Cloud connection was unexpectedly closed.");
-// #if defined(CONFIG_CLOUD_API)
-// 			cloud_evt.data.err = CLOUD_DISCONNECT_MISC;
-// #else
-// 			cloud_evt.data.err = COAP_CLOUD_DISCONNECT_MISC;
-// #endif
-// 			break;
-// 		}
-// 	}
-//
-// #if defined(CONFIG_CLOUD_API)
-// 	cloud_notify_event(coap_cloud_backend, &cloud_evt, NULL);
-// #else
-// 	coap_cloud_notify_event(&cloud_evt);
-// #endif
-// 	coap_cloud_disconnect();
-//
-// reset:
-// 	atomic_set(&connection_poll_active, 0);
-// 	k_sem_take(&connection_poll_sem, K_NO_WAIT);
-// 	goto start;
-// }
+#if defined(CONFIG_COAP_CLOUD_CONNECTION_POLL_THREAD)
+void mqtt_cloud_cloud_poll(void)
+{
+
+	printk("Started POLLING....\n");
+	int err;
+	struct pollfd fds[1];
+#if defined(CONFIG_CLOUD_API)
+	struct cloud_event cloud_evt = {
+		.type = CLOUD_EVT_DISCONNECTED,
+		.data = { .err = CLOUD_DISCONNECT_MISC}
+	};
+#else
+	struct coap_cloud_evt cloud_evt = {
+		.type = COAP_CLOUD_EVT_DISCONNECTED,
+		.data = { .err = COAP_CLOUD_DISCONNECT_MISC}
+	};
+#endif
+
+start:
+	k_sem_take(&connection_poll_sem, K_FOREVER);
+	atomic_set(&connection_poll_active, 1);
+
+#if defined(CONFIG_CLOUD_API)
+	cloud_evt.data.err = CLOUD_CONNECT_RES_SUCCESS;
+	cloud_evt.type = CLOUD_EVT_CONNECTING;
+	cloud_notify_event(coap_cloud_backend, &cloud_evt, NULL);
+#else
+	cloud_evt.data.err = COAP_CLOUD_CONNECT_RES_SUCCESS;
+	cloud_evt.type = COAP_CLOUD_EVT_CONNECTING;
+	coap_cloud_notify_event(&cloud_evt);
+#endif
+
+	// err = client_broker_init(&client);
+	if (err) {
+		LOG_ERR("client_broker_init, error: %d", err);
+	}
+
+	// err = mqtt_connect(&client);
+	if (err) {
+		LOG_ERR("mqtt_connect, error: %d", err);
+	}
+
+	printk("got error in event handler: %d\n", err);
+
+	err = connect_error_translate(err);
+
+#if defined(CONFIG_CLOUD_API)
+	if (err != CLOUD_CONNECT_RES_SUCCESS) {
+		cloud_evt.data.err = err;
+		cloud_evt.type = CLOUD_EVT_CONNECTING;
+		cloud_notify_event(coap_cloud_backend, &cloud_evt, NULL);
+		goto reset;
+	} else {
+		LOG_DBG("Cloud connection request sent.");
+	}
+#else
+	if (err != COAP_CLOUD_CONNECT_RES_SUCCESS) {
+		cloud_evt.data.err = err;
+		cloud_evt.type = COAP_CLOUD_EVT_CONNECTING;
+		coap_cloud_notify_event(&cloud_evt);
+		goto reset;
+	} else {
+		LOG_DBG("AWS broker connection request sent.");
+	}
+#endif
+
+	fds[0].fd = client.transport.tls.sock;
+	fds[0].events = POLLIN;
+
+	/* Only disconnect events will occur below */
+#if defined(CONFIG_CLOUD_API)
+	cloud_evt.type = CLOUD_EVT_DISCONNECTED;
+#else
+	cloud_evt.type = COAP_CLOUD_EVT_DISCONNECTED;
+#endif
+
+	while (true) {
+		err = poll(fds, ARRAY_SIZE(fds), COAP_CLOUD_POLL_TIMEOUT_MS);
+
+		if (err == 0) {
+			if (coap_cloud_keepalive_time_left() <
+			    COAP_CLOUD_POLL_TIMEOUT_MS) {
+				coap_cloud_ping();
+			}
+			continue;
+		}
+
+		if ((fds[0].revents & POLLIN) == POLLIN) {
+			coap_cloud_input();
+			continue;
+		}
+
+		if (err < 0) {
+			LOG_ERR("poll() returned an error: %d", err);
+#if defined(CONFIG_CLOUD_API)
+			cloud_evt.data.err = CLOUD_DISCONNECT_MISC;
+#else
+			cloud_evt.data.err = COAP_CLOUD_DISCONNECT_MISC;
+#endif
+			break;
+		}
+
+		if (atomic_get(&disconnect_requested)) {
+			atomic_set(&disconnect_requested, 0);
+			LOG_DBG("Expected disconnect event.");
+#if defined(CONFIG_CLOUD_API)
+			cloud_evt.data.err = CLOUD_DISCONNECT_USER_REQUEST;
+			cloud_notify_event(coap_cloud_backend, &cloud_evt, NULL);
+#else
+			cloud_evt.data.err = COAP_CLOUD_DISCONNECT_MISC;
+			coap_cloud_notify_event(&cloud_evt);
+#endif
+			goto reset;
+		}
+
+		if ((fds[0].revents & POLLNVAL) == POLLNVAL) {
+			LOG_DBG("Socket error: POLLNVAL");
+			LOG_DBG("The cloud socket was unexpectedly closed.");
+#if defined(CONFIG_CLOUD_API)
+			cloud_evt.data.err = CLOUD_DISCONNECT_INVALID_REQUEST;
+#else
+			cloud_evt.data.err = COAP_CLOUD_DISCONNECT_INVALID_REQUEST;
+#endif
+			break;
+		}
+
+		if ((fds[0].revents & POLLHUP) == POLLHUP) {
+			LOG_DBG("Socket error: POLLHUP");
+			LOG_DBG("Connection was closed by the cloud.");
+#if defined(CONFIG_CLOUD_API)
+			cloud_evt.data.err = CLOUD_DISCONNECT_CLOSED_BY_REMOTE;
+#else
+			cloud_evt.data.err =
+					COAP_CLOUD_DISCONNECT_CLOSED_BY_REMOTE;
+#endif
+			break;
+		}
+
+		if ((fds[0].revents & POLLERR) == POLLERR) {
+			LOG_DBG("Socket error: POLLERR");
+			LOG_DBG("Cloud connection was unexpectedly closed.");
+#if defined(CONFIG_CLOUD_API)
+			cloud_evt.data.err = CLOUD_DISCONNECT_MISC;
+#else
+			cloud_evt.data.err = COAP_CLOUD_DISCONNECT_MISC;
+#endif
+			break;
+		}
+	}
+
+#if defined(CONFIG_CLOUD_API)
+	cloud_notify_event(coap_cloud_backend, &cloud_evt, NULL);
+#else
+	coap_cloud_notify_event(&cloud_evt);
+#endif
+	coap_cloud_disconnect();
+
+reset:
+	atomic_set(&connection_poll_active, 0);
+	k_sem_take(&connection_poll_sem, K_NO_WAIT);
+	goto start;
+}
 
 #ifdef CONFIG_BOARD_QEMU_X86
 #define POLL_THREAD_STACK_SIZE 4096
@@ -1130,18 +1183,22 @@ int coap_cloud_init(const struct coap_cloud_config *const config,
 #define POLL_THREAD_STACK_SIZE 2560
 #endif
 
-// TODO what was this for?
-// // K_THREAD_DEFINE(connection_poll_thread, POLL_THREAD_STACK_SIZE,
-// // 		mqtt_cloud_cloud_poll, NULL, NULL, NULL,
-// // 		K_LOWEST_APPLICATION_THREAD_PRIO, 0, 0);
-// #endif
+K_THREAD_DEFINE(connection_poll_thread, POLL_THREAD_STACK_SIZE,
+		mqtt_cloud_cloud_poll, NULL, NULL, NULL,
+		K_LOWEST_APPLICATION_THREAD_PRIO, 0, 0);
+#endif
 
 #if defined(CONFIG_CLOUD_API)
 static int c_init(const struct cloud_backend *const backend,
 		  cloud_evt_handler_t handler)
 {
 
-  printk("hello, i am initilaizing and probably then crashing\n");
+  printk("hello, i am initilaizing and probably then crashing, testing vars: %d\n", COAP_CLOUD_EVT_CONNECTED);
+	printk("is it defined?\n");
+	#if !defined(CONFIG_CLOUD_API)
+	printk("in coap_cloud_init, CONFIG_CLOUD_API is not defined\n");
+		module_evt_handler = event_handler;
+	#endif
 	backend->config->handler = handler;
 	coap_cloud_backend = (struct cloud_backend *)backend;
 
@@ -1212,6 +1269,7 @@ static const struct cloud_api coap_cloud_api = {
 	.input			  = c_input,
 	.ep_subscriptions_add	= c_ep_subscriptions_add
 };
+
 
 CLOUD_BACKEND_DEFINE(COAP_CLOUD, coap_cloud_api);
 #endif

@@ -20,6 +20,7 @@ config COAP_CLOUD_STATIC_IPV4_ADDR
 
 config COAP_CLOUD_SEC_TAG
     int "Security tag to use for AWS IoT connection"
+    default 1
 
 config COAP_CLOUD_BROKER_HOST_NAME
     string "AWS IoT server hostname"
@@ -35,7 +36,7 @@ config COAP_CLOUD_COAP_RX_TX_BUFFER_LEN
         Specifies maximum message size can be transmitted/received through
         COAP (exluding MQTT PUBLISH payload).
 
-config COAP_CLOUD_COAP_PAYLOAD_BUFFER_LEN
+config COAP_CLOUD_PAYLOAD_BUFFER_LEN
     int "Size of the MQTT PUBLISH payload buffer (receiving MQTT messages)."
     default 256
 
@@ -78,8 +79,10 @@ config COAP_CLOUD_TOPIC_DELETE_ACCEPTED_SUBSCRIBE
 config COAP_CLOUD_TOPIC_DELETE_REJECTED_SUBSCRIBE
     bool "Subscribe to delete rejected shadow topic, $aws/things/<thing-name>/shadow/delete/rejected"
 
-config COAP_CLOUD_CONNECTION_POLL_THREAD
-    bool "Enable polling on MQTT socket in AWS IoT backend"
+# config COAP_CLOUD_CONNECTION_POLL_THREAD
+#    bool "Enable polling on MQTT socket in AWS IoT backend"
+
+COAP_CLOUD_CONNECTION_POLL_THREAD=y
 
 module=COAP_CLOUD
 module-dep=LOG

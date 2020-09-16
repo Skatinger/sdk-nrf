@@ -28,63 +28,64 @@ extern "C" {
  *         topic that will be published to.
  */
 enum coap_cloud_topic_type {
-    coap_cloud_SHADOW_TOPIC_UNKNOWN = 0x0,
-    coap_cloud_SHADOW_TOPIC_GET,
-    coap_cloud_SHADOW_TOPIC_UPDATE,
-    coap_cloud_SHADOW_TOPIC_DELETE
+    COAP_CLOUD_SHADOW_TOPIC_UNKNOWN = 0x0,
+    COAP_CLOUD_SHADOW_TOPIC_GET,
+    COAP_CLOUD_SHADOW_TOPIC_UPDATE,
+    COAP_CLOUD_SHADOW_TOPIC_DELETE
 };
 
 /**@ AWS broker disconnect results. */
 enum aws_disconnect_result {
-    coap_cloud_DISCONNECT_USER_REQUEST,
-    coap_cloud_DISCONNECT_CLOSED_BY_REMOTE,
-    coap_cloud_DISCONNECT_INVALID_REQUEST,
-    coap_cloud_DISCONNECT_MISC,
-    coap_cloud_DISCONNECT_COUNT
+    COAP_CLOUD_DISCONNECT_USER_REQUEST,
+    COAP_CLOUD_DISCONNECT_CLOSED_BY_REMOTE,
+    COAP_CLOUD_DISCONNECT_INVALID_REQUEST,
+    COAP_CLOUD_DISCONNECT_MISC,
+    COAP_CLOUD_DISCONNECT_COUNT
 };
 
 /**@brief AWS broker connect results. */
 enum aws_connect_result {
-    coap_cloud_CONNECT_RES_SUCCESS = 0,
-    coap_cloud_CONNECT_RES_ERR_NOT_INITD = -1,
-    coap_cloud_CONNECT_RES_ERR_INVALID_PARAM = -2,
-    coap_cloud_CONNECT_RES_ERR_NETWORK = -3,
-    coap_cloud_CONNECT_RES_ERR_BACKEND = -4,
-    coap_cloud_CONNECT_RES_ERR_MISC = -5,
-    coap_cloud_CONNECT_RES_ERR_NO_MEM = -6,
+    COAP_CLOUD_CONNECT_RES_SUCCESS = 0,
+    COAP_CLOUD_CONNECT_RES_ERR_NOT_INITD = -1,
+    COAP_CLOUD_CONNECT_RES_ERR_INVALID_PARAM = -2,
+    COAP_CLOUD_CONNECT_RES_ERR_NETWORK = -3,
+    COAP_CLOUD_CONNECT_RES_ERR_BACKEND = -4,
+    COAP_CLOUD_CONNECT_RES_ERR_MISC = -5,
+    COAP_CLOUD_CONNECT_RES_ERR_NO_MEM = -6,
     /* Invalid private key */
-    coap_cloud_CONNECT_RES_ERR_PRV_KEY = -7,
+    COAP_CLOUD_CONNECT_RES_ERR_PRV_KEY = -7,
     /* Invalid CA or client cert */
-    coap_cloud_CONNECT_RES_ERR_CERT = -8,
+    COAP_CLOUD_CONNECT_RES_ERR_CERT = -8,
     /* Other cert issue */
-    coap_cloud_CONNECT_RES_ERR_CERT_MISC = -9,
+    COAP_CLOUD_CONNECT_RES_ERR_CERT_MISC = -9,
     /* Timeout, SIM card may be out of data */
-    coap_cloud_CONNECT_RES_ERR_TIMEOUT_NO_DATA = -10,
-    coap_cloud_CONNECT_RES_ERR_ALREADY_CONNECTED = -11,
+    COAP_CLOUD_CONNECT_RES_ERR_TIMEOUT_NO_DATA = -10,
+    COAP_CLOUD_CONNECT_RES_ERR_ALREADY_CONNECTED = -11,
 };
 
 /** @brief AWS IoT notification event types, used to signal the application. */
+// TODO are these automatically correct?
 enum coap_cloud_evt_type {
     /** Connecting to AWS IoT broker. */
-    coap_cloud_evt_CONNECTING = 0x1,
+    COAP_CLOUD_EVT_CONNECTING = 0x1,
     /** Connected to AWS IoT broker. */
-    coap_cloud_evt_CONNECTED,
+    COAP_CLOUD_EVT_CONNECTED,
     /** AWS IoT broker ready. */
-    coap_cloud_evt_READY,
+    COAP_CLOUD_EVT_READY,
     /** Disconnected to AWS IoT broker. */
-    coap_cloud_evt_DISCONNECTED,
+    COAP_CLOUD_EVT_DISCONNECTED,
     /** Data received from AWS message broker. */
-    coap_cloud_evt_DATA_RECEIVED,
+    COAP_CLOUD_EVT_DATA_RECEIVED,
     /** FOTA update start. */
-    coap_cloud_evt_FOTA_START,
+    COAP_CLOUD_EVT_FOTA_START,
     /** FOTA update done, request to reboot. */
-    coap_cloud_evt_FOTA_DONE,
+    COAP_CLOUD_EVT_FOTA_DONE,
     /** FOTA erase pending. */
-    coap_cloud_evt_FOTA_ERASE_PENDING,
+    COAP_CLOUD_EVT_FOTA_ERASE_PENDING,
     /** FOTA erase done. */
-    coap_cloud_evt_FOTA_ERASE_DONE,
+    COAP_CLOUD_EVT_FOTA_ERASE_DONE,
     /** AWS IoT library error. */
-    coap_cloud_evt_ERROR
+    COAP_CLOUD_EVT_ERROR
 };
 
 /** @brief AWS IoT topic data. */
@@ -106,6 +107,15 @@ struct coap_cloud_topic_data {
 //     /** Number of entries in topic list. */
 //     size_t list_count;
 // };
+
+
+/** @brief struct to hold data related to the coap client */
+struct coap_client {
+  // socket for communication
+  int sock;
+  struct sockaddr_in *broker;
+
+};
 
 /** @brief AWS IoT transmission data. */
 struct coap_cloud_data {
