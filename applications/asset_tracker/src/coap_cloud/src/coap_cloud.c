@@ -124,92 +124,6 @@ static void coap_cloud_notify_event(const struct coap_cloud_evt *evt)
 }
 #endif
 
-// static int mqtt_cloud_topics_populate(char *const id, size_t id_len)
-// {
-// 	int err;
-// #if defined(CONFIG_COAP_CLOUD_CLIENT_ID_APP)
-// 	err = snprintf(client_id_buf, sizeof(client_id_buf),
-// 		       AWS_CLIENT_ID_PREFIX, id);
-// 	if (err >= AWS_CLIENT_ID_LEN_MAX) {
-// 		return -ENOMEM;
-// 	}
-// #else
-// 	err = snprintf(client_id_buf, sizeof(client_id_buf),
-// 		       AWS_CLIENT_ID_PREFIX, CONFIG_COAP_CLOUD_CLIENT_ID_STATIC);
-// 	if (err >= AWS_CLIENT_ID_LEN_MAX) {
-// 		return -ENOMEM;
-// 	}
-// #endif
-//
-// 	err = snprintf(get_topic, sizeof(get_topic),
-// 		       GET_TOPIC, client_id_buf);
-// 	if (err >= GET_TOPIC_LEN) {
-// 		return -ENOMEM;
-// 	}
-//
-// 	err = snprintf(update_topic, sizeof(update_topic),
-// 		       UPDATE_TOPIC, client_id_buf);
-// 	if (err >= UPDATE_TOPIC_LEN) {
-// 		return -ENOMEM;
-// 	}
-//
-// 	err = snprintf(delete_topic, sizeof(delete_topic),
-// 		       DELETE_TOPIC, client_id_buf);
-// 	if (err >= DELETE_TOPIC_LEN) {
-// 		return -ENOMEM;
-// 	}
-//
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_GET_ACCEPTED_SUBSCRIBE)
-// 	err = snprintf(get_accepted_topic, sizeof(get_accepted_topic),
-// 		       GET_ACCEPTED_TOPIC, client_id_buf);
-// 	if (err >= GET_ACCEPTED_TOPIC_LEN) {
-// 		return -ENOMEM;
-// 	}
-// #endif
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_GET_REJECTED_SUBSCRIBE)
-// 	err = snprintf(get_rejected_topic, sizeof(get_rejected_topic),
-// 		       GET_REJECTED_TOPIC, client_id_buf);
-// 	if (err >= GET_REJECTED_TOPIC_LEN) {
-// 		return -ENOMEM;
-// 	}
-// #endif
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_ACCEPTED_SUBSCRIBE)
-// 	err = snprintf(update_accepted_topic, sizeof(update_accepted_topic),
-// 		       UPDATE_ACCEPTED_TOPIC, client_id_buf);
-// 	if (err >= UPDATE_ACCEPTED_TOPIC_LEN) {
-// 		return -ENOMEM;
-// 	}
-// #endif
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_REJECTED_SUBSCRIBE)
-// 	err = snprintf(update_rejected_topic, sizeof(update_rejected_topic),
-// 		       UPDATE_REJECTED_TOPIC, client_id_buf);
-// 	if (err >= UPDATE_REJECTED_TOPIC_LEN) {
-// 		return -ENOMEM;
-// 	}
-// #endif
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_DELTA_SUBSCRIBE)
-// 	err = snprintf(update_delta_topic, sizeof(update_delta_topic),
-// 		       UPDATE_DELTA_TOPIC, client_id_buf);
-// 	if (err >= UPDATE_DELTA_TOPIC_LEN) {
-// 		return -ENOMEM;
-// 	}
-// #endif
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_DELETE_ACCEPTED_SUBSCRIBE)
-// 	err = snprintf(delete_accepted_topic, sizeof(delete_accepted_topic),
-// 		       DELETE_ACCEPTED_TOPIC, client_id_buf);
-// 	if (err >= DELETE_ACCEPTED_TOPIC_LEN) {
-// 		return -ENOMEM;
-// 	}
-// #endif
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_DELETE_REJECTED_SUBSCRIBE)
-// 	err = snprintf(delete_rejected_topic, sizeof(delete_rejected_topic),
-// 		       DELETE_REJECTED_TOPIC, client_id_buf);
-// 	if (err >= DELETE_REJECTED_TOPIC_LEN) {
-// 		return -ENOMEM;
-// 	}
-// #endif
-// 	return 0;
-// }
 
 #if defined(CONFIG_AWS_FOTA)
 static void aws_fota_cb_handler(struct aws_fota_event *fota_evt)
@@ -405,6 +319,8 @@ static void coap_evt_handler(struct coap_client *const c,
 															const struct coap_evt *coap_evt) // TODO add client here struct coap_client *const c)
 			     // const struct mqtt_evt *mqtt_evt)
 {
+
+	printk("coap_evt_handler got called ffffffffffffffffffffffffffffffffffff\n");
 	int err;
 #if defined(CONFIG_CLOUD_API)
 	struct cloud_backend_config *config = coap_cloud_backend->config;
@@ -693,8 +609,12 @@ static int broker_init(void) {
 	client.sock = sock;
 	client.broker = &broker;
 
-	// should send connected event
+
+	// should send ready event
 	printk("now gonna trigger COAP_CLOUD_EVENT_CONNECTED: %d\n", CLOUD_EVT_CONNECTED);
+	struct cloud_backend_config *config = coap_cloud_backend->config;
+	struct cloud_event cloud_evt = { CLOUD_EVT_READY };
+  cloud_notify_event(coap_cloud_backend, &cloud_evt, config->user_data);
 
 
 	return err;
@@ -716,7 +636,7 @@ static int client_broker_init(void) //struct coap_client *const client) // TODO 
 	// }
 
   // pass the socket
-	client.broker			= &broker;
+	// client.broker			= &broker;
 	// pass the event handler
 	// client->event_handler			= coap_evt_handler;
 
@@ -835,54 +755,10 @@ int coap_cloud_input(void)
 	return 0; //mqtt_input(&client);
 }
 
-int coap_cloud_send(void) // const struct coap_cloud_data *const data) //  *const tx_data)
+int coap_cloud_send(char* string)//const struct coap_cloud_data *const data) //  *const tx_data)
 {
-	// struct mqtt_cloud_data tx_data_pub = {
-	// 	.ptr	    = tx_data->ptr,
-	// 	.len	    = tx_data->len,
-	// 	.qos	    = tx_data->qos,
-	// 	.topic.type = tx_data->topic.type,
-	// 	.topic.str  = tx_data->topic.str,
-	// 	.topic.len  = tx_data->topic.len
-	// };
 
-// #if !defined(CONFIG_CLOUD_API)
-// 	switch (tx_data->topic.type) {
-// 	case COAP_CLOUD_SHADOW_TOPIC_GET:
-// 		tx_data_pub.topic.str = get_topic;
-// 		tx_data_pub.topic.len = strlen(get_topic);
-// 		break;
-// 	case COAP_CLOUD_SHADOW_TOPIC_UPDATE:
-// 		tx_data_pub.topic.str = update_topic;
-// 		tx_data_pub.topic.len = strlen(update_topic);
-// 		break;
-// 	case COAP_CLOUD_SHADOW_TOPIC_DELETE:
-// 		tx_data_pub.topic.str = delete_topic;
-// 		tx_data_pub.topic.len = strlen(delete_topic);
-// 		break;
-// 	default:
-// 		if (tx_data->topic.str == NULL || tx_data->topic.len == 0) {
-// 			LOG_ERR("No application topic present in tx_data");
-// 			return -ENODATA;
-// 		}
-// 		break;
-// 	}
-// #endif
-
-	// struct mqtt_publish_param param;
-	//
-	// param.message.topic.qos		= tx_data_pub.qos;
-	// param.message.topic.topic.utf8	= tx_data_pub.topic.str;
-	// param.message.topic.topic.size	= tx_data_pub.topic.len;
-	// param.message.payload.data	= tx_data_pub.ptr;
-	// param.message.payload.len	= tx_data_pub.len;
-	// param.message_id		= sys_rand32_get();
-	// param.dup_flag			= 0;
-	// param.retain_flag		= 0;
-	//
-	// LOG_DBG("Publishing to topic: %s",
-	// 	log_strdup(param.message.topic.topic.utf8));
-
+  LOG_INF("sending (not really): %s\n", string);
 	return 0; // mqtt_publish(&client, &param);
 }
 
@@ -897,30 +773,29 @@ int coap_cloud_connect(struct coap_cloud_config *const config)
 {
 	int err;
 
-	printk("now in coap cloud connect\n");
+	// printk("now in coap cloud connect\n");
 
 	if (IS_ENABLED(CONFIG_COAP_CLOUD_CONNECTION_POLL_THREAD)) {
     // if(1){
 		err = connection_poll_start();
 		printk("got to connection_poll_start\n");
 	} else {
-		printk("landed in else of poll_start\n");
+		// printk("landed in else of poll_start\n");
 		atomic_set(&disconnect_requested, 0);
-		printk("now with client_broker_init start\n");
+		// printk("now with client_broker_init start\n");
+		LOG_INF("calling client_broker_init (cloud: 910)");
 		err = client_broker_init();
 
 		if (err) {
 			LOG_ERR("client_broker_init, error: %d", err);
 			return err;
 		}
-
+    // TODO send a connack / CLOUD_CONNECT_RES_SUCCESS
 		// err = mqtt_connect(&client);
 		// err = coap_connect();
 		// if (err) {
 		// 	LOG_ERR("coap_connect, error: %d", err);
 		// }
-
-		printk("error in coap_cloud_connect: %d\n", err);
 
 		err = connect_error_translate(err);
 
@@ -931,7 +806,13 @@ int coap_cloud_connect(struct coap_cloud_config *const config)
 #endif
 	}
 
-  printk("ok, error is: %d\n", err);
+  printk("error in coap_cloud_connect: %d\n", err);
+
+  //struct cloud_backend_config *config = coap_cloud_backend->config;
+	//struct cloud_event cloud_evt = { 0 };
+	//cloud_evt.type = CLOUD_EVT_CONNECTED;
+
+
 	return err;
 }
 
@@ -964,48 +845,10 @@ int coap_cloud_connect(struct coap_cloud_config *const config)
 int coap_cloud_init(const struct coap_cloud_config *const config,
 		 coap_cloud_evt_handler_t event_handler)
 {
+
 	int err;
 
-	if (IS_ENABLED(CONFIG_COAP_CLOUD_CLIENT_ID_APP) &&
-	    config->client_id_len >= CONFIG_CLIENT_ID_MAX_LEN) {
-		LOG_ERR("Client ID string too long");
-		return -EMSGSIZE;
-	}
 
-	if (IS_ENABLED(CONFIG_COAP_CLOUD_CLIENT_ID_APP) &&
-	    config->client_id == NULL) {
-		LOG_ERR("Client ID not set in the application");
-		return -ENODATA;
-	}
-
-	// err = mqtt_cloud_topics_populate(config->client_id, config->client_id_len);
-	// if (err) {
-	// 	LOG_ERR("aws_topics_populate, error: %d", err);
-	// 	return err;
-	// }
-
-  // initialize coap client on ipv4
-	// coap_init(AF_INET);
-
-	// TODO open coap socket here
-
-	// struct coap_packet request;
-  // printk("trying to init client\n");
-	// if (client_init() != 0) {
-  //   printk("Failed to initialize CoAP client\n");
-  //   return;
-  // }
-
-
-
-// #if defined(CONFIG_AWS_FOTA)
-// 	err = aws_fota_init(&client, aws_fota_cb_handler);
-// 	if (err) {
-// 		LOG_ERR("aws_fota_init, error: %d", err);
-// 		return err;
-// 	}
-// #endif
-// printk("is it defined ............?\n");
 #if !defined(CONFIG_CLOUD_API)
 printk("in coap_cloud_init, CONFIG_CLOUD_API is not defined\n");
 	module_evt_handler = event_handler;
@@ -1201,10 +1044,8 @@ static int c_init(const struct cloud_backend *const backend,
 		  cloud_evt_handler_t handler)
 {
 
-  printk("hello, i am initilaizing and probably then crashing, testing vars: %d\n", COAP_CLOUD_EVT_CONNECTED);
-	printk("is it defined?\n");
+  LOG_INF("2 -- in c_init");
 	#if !defined(CONFIG_CLOUD_API)
-	printk("in coap_cloud_init, CONFIG_CLOUD_API is not defined\n");
 		module_evt_handler = event_handler;
 	#endif
 	backend->config->handler = handler;
@@ -1214,7 +1055,6 @@ static int c_init(const struct cloud_backend *const backend,
 		.client_id = backend->config->id,
 		.client_id_len = backend->config->id_len
 	};
-  printk("nearly at the end of c_init, returning coap_cloud_init\n");
 	return coap_cloud_init(&config, NULL);
 }
 
@@ -1234,7 +1074,7 @@ static int c_ep_subscriptions_add(const struct cloud_backend *const backend,
 
 static int c_connect(const struct cloud_backend *const backend)
 {
-	printk("c_connect called by main:cloud_connect(cloud_backend)");
+	LOG_INF("c_connect called (cloud: 1195)");
 	return coap_cloud_connect(backend);
 }
 
@@ -1247,9 +1087,9 @@ static int c_send(const struct cloud_backend *const backend,
 		  const struct cloud_msg *const msg)
 {
 
-	printk("c_send called\n");
+	printk("C_SEND called\n");
 
-	return coap_cloud_send(); // (&tx_data);
+	return coap_cloud_send("string");
 }
 
 static int c_input(const struct cloud_backend *const backend)

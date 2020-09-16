@@ -307,6 +307,7 @@ static void app_disconnect(void)
 /**@brief nRF Cloud error handler. */
 void error_handler(enum error_type err_type, int err_code)
 {
+	printk("!!!!!!!!!! error_handler (main) should never get here\n");
 	atomic_set(&cloud_association, CLOUD_ASSOCIATION_STATE_INIT);
 
 	if (err_type == ERROR_CLOUD) {
@@ -519,7 +520,7 @@ void connect_to_cloud(const s32_t connect_delay_s)
 	} else {
 		initial_connect = false;
 	}
-
+  LOG_INF("5 -- submitting cloud_connect_work (main: 522)");
 	k_delayed_work_submit_to_queue(&application_work_q,
 				       &cloud_connect_work,
 				       K_SECONDS(connect_delay_s));
@@ -540,6 +541,7 @@ static void cloud_connect_work_fn(struct k_work *work)
 	ui_led_set_pattern(UI_CLOUD_CONNECTING);
 
 	/* Attempt cloud connection */
+	LOG_INF("6 -- attempt cloud_connect (main: 543)");
 	ret = cloud_connect(cloud_backend);
 	printk("result from cloud connect: %d, %d\n", ret, CLOUD_CONNECT_RES_SUCCESS);
 	if (ret != CLOUD_CONNECT_RES_SUCCESS) {
@@ -550,7 +552,7 @@ static void cloud_connect_work_fn(struct k_work *work)
 		 */
 		cloud_connect_error_handler(ret);
 	} else {
-		LOG_INF("Cloud connection request sent (main).");
+		LOG_INF("Cloud connection request was sent (main).");
                 printk("err: %d  %d\n", CLOUD_CONNECT_RES_SUCCESS, ret);
 		LOG_INF("Connection response timeout is set to %d seconds.",
 		       CLOUD_CONNACK_WAIT_DURATION / MSEC_PER_SEC);
@@ -1554,7 +1556,7 @@ static void cloud_api_init(void)
 
 	cloud_backend = cloud_get_binding("COAP_CLOUD");
 	__ASSERT(cloud_backend != NULL, "COAP Cloud backend not found");
-
+	LOG_INF("1 -- calling cloud_init (main)");
 	ret = cloud_init(cloud_backend, cloud_event_handler);
 	if (ret) {
 		LOG_ERR("Cloud backend could not be initialized, error: %d",
@@ -1767,13 +1769,13 @@ void main(void)
 #endif
 
 	cloud_api_init();
-	printk("got after cloud api init\n");
+	// printk("got after cloud api init\n");
 
 #if defined(CONFIG_USE_UI_MODULE)
 	ui_init(ui_evt_handler);
 #endif
 	work_init();
-	printk("initialized work");
+	// printk("initialized work");
 
 	while (modem_configure() != 0) {
 		LOG_WRN("Failed to establish LTE connection.");
@@ -1786,6 +1788,14 @@ void main(void)
 	LOG_INF("Waiting for LWM2M carrier to complete initialization...");
 	k_sem_take(&cloud_ready_to_connect, K_FOREVER);
 #endif
-  printk("at connect_to_cloud in Main\n");
+  // printk("at connect_to_cloud in Main ------------------------------\n");
+	// struct cloud_msg msg = {
+	// 	.qos = CLOUD_QOS_AT_MOST_ONCE,
+	// 	.endpoint.type = CLOUD_EP_TOPIC_MSG
+	// };
+	// int err;
+	// err = cloud_send(cloud_backend, &msg);
+	// printk("RETURNED: %d\n", err);
+	LOG_INF("3 -- connect_to_cloud called (main)");
 	connect_to_cloud(0);
 }

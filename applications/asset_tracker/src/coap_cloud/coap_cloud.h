@@ -203,7 +203,7 @@ int coap_cloud_disconnect(void);
  *  @return 0 If successful.
  *            Otherwise, a (negative) error code is returned.
  */
-int coap_cloud_send(void); // const struct coap_cloud_data); // TODO add data *const tx_data);
+int coap_cloud_send(char* string);//const struct *const coap_cloud_data); // TODO add data *const tx_data);
 
 /** @brief Get data from AWS IoT broker
  *
