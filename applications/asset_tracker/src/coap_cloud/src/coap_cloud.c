@@ -101,8 +101,9 @@ static char delete_rejected_topic[DELETE_REJECTED_TOPIC_LEN + 1];
 #define APP_COAP_MAX_MSG_LEN 1280
 #define APP_COAP_VERSION 1
 
-#define CONFIG_COAP_RESOURCE "obs"
-#define CONFIG_COAP_SERVER_HOSTNAME "californium.eclipse.org"
+#define CONFIG_COAP_RESOURCE "other/block"// "obs"
+#define CONFIG_COAP_SERVER_HOSTNAME "83.150.54.152"
+  //"californium.eclipse.org"
 // #define MESSAGE_ID u16_t
 
 static struct coap_client client;
@@ -210,124 +211,6 @@ static void aws_fota_cb_handler(struct aws_fota_event *fota_evt)
 	}
 }
 #endif
-
-// static int topic_subscribe(void)
-// {
-// 	int err;
-// 	const struct mqtt_topic mqtt_cloud_rx_list[] = {
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_GET_ACCEPTED_SUBSCRIBE)
-// 		{
-// 			.topic = {
-// 				.utf8 = get_accepted_topic,
-// 				.size = strlen(get_accepted_topic)
-// 			},
-// 			.qos = COAP_QOS_1_AT_LEAST_ONCE
-// 		},
-// #endif
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_GET_REJECTED_SUBSCRIBE)
-// 		{
-// 			.topic = {
-// 				.utf8 = get_rejected_topic,
-// 				.size = strlen(get_rejected_topic)
-// 			},
-// 			.qos = COAP_QOS_1_AT_LEAST_ONCE
-// 		},
-// #endif
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_ACCEPTED_SUBSCRIBE)
-// 		{
-// 			.topic = {
-// 				.utf8 = update_accepted_topic,
-// 				.size = strlen(update_accepted_topic)
-// 			},
-// 			.qos = COAP_QOS_1_AT_LEAST_ONCE
-// 		},
-// #endif
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_REJECTED_SUBSCRIBE)
-// 		{
-// 			.topic = {
-// 				.utf8 = update_rejected_topic,
-// 				.size = strlen(update_rejected_topic)
-// 			},
-// 			.qos = COAP_QOS_1_AT_LEAST_ONCE
-// 		},
-// #endif
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_DELTA_SUBSCRIBE)
-// 		{
-// 			.topic = {
-// 				.utf8 = update_delta_topic,
-// 				.size = strlen(update_delta_topic)
-// 			},
-// 			.qos = COAP_QOS_1_AT_LEAST_ONCE
-// 		},
-// #endif
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_DELETE_ACCEPTED_SUBSCRIBE)
-// 		{
-// 			.topic = {
-// 				.utf8 = delete_accepted_topic,
-// 				.size = strlen(delete_accepted_topic)
-// 			},
-// 			.qos = COAP_QOS_1_AT_LEAST_ONCE
-// 		},
-// #endif
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_DELETE_REJECTED_SUBSCRIBE)
-// 		{
-// 			.topic = {
-// 				.utf8 = delete_rejected_topic,
-// 				.size = strlen(delete_rejected_topic)
-// 			},
-// 			.qos = COAP_QOS_1_AT_LEAST_ONCE
-// 		},
-// #endif
-// 	};
-//
-// 	if (app_topic_data.list_count > 0) {
-// 		const struct mqtt_subscription_list app_sub_list = {
-// 			.list = app_topic_data.list,
-// 			.list_count = app_topic_data.list_count,
-// 			.message_id = sys_rand32_get()
-// 		};
-//
-// 		for (size_t i = 0; i < app_sub_list.list_count; i++) {
-// 			LOG_DBG("Subscribing to application topic: %s",
-// 				log_strdup(app_sub_list.list[i].topic.utf8));
-// 		}
-//
-// 		err = mqtt_subscribe(&client, &app_sub_list);
-// 		if (err) {
-// 			LOG_ERR("Application topics subscribe, error: %d", err);
-// 		}
-// 	}
-//
-// 	if (ARRAY_SIZE(mqtt_cloud_rx_list) > 0) {
-// 		const struct mqtt_subscription_list aws_sub_list = {
-// 			.list = (struct mqtt_topic *)&mqtt_cloud_rx_list,
-// 			.list_count = ARRAY_SIZE(mqtt_cloud_rx_list),
-// 			.message_id = sys_rand32_get()
-// 		};
-//
-// 		for (size_t i = 0; i < aws_sub_list.list_count; i++) {
-// 			LOG_DBG("Subscribing to AWS shadow topic: %s",
-// 				log_strdup(aws_sub_list.list[i].topic.utf8));
-// 		}
-//
-// 		err = mqtt_subscribe(&client, &aws_sub_list);
-// 		if (err) {
-// 			LOG_ERR("AWS shadow topics subscribe, error: %d", err);
-// 		}
-// 	}
-//
-// 	return err;
-// }
-
-// static int publish_get_payload(size_t length) // TODO add client here struct coap_client *const c, size_t length)
-// {
-// 	if (length > sizeof(payload_buf)) {
-// 		LOG_ERR("Incoming COAP message too large for payload buffer");
-// 		return -EMSGSIZE;
-// 	}
-//
-// 	// return mqtt_readall_publish_payload(c, payload_buf, length);
-// }
 
 static void coap_evt_handler(struct coap_client *const c,
 															const struct coap_evt *coap_evt) // TODO add client here struct coap_client *const c)
@@ -565,8 +448,7 @@ static int broker_init(void) {
 	    return -errno;
 	  }
 
-		err = connect(sock, (struct sockaddr *)&broker,
-	      sizeof(struct sockaddr_in));
+		err = connect(sock, (struct sockaddr *)&broker, sizeof(struct sockaddr_in));
 	  if (err < 0) {
 	    printk("Connect failed : %d\n", errno);
 	    return -errno;
@@ -810,7 +692,7 @@ int coap_cloud_input(void)
 int coap_cloud_send(char* string)//const struct coap_cloud_data *const data) //  *const tx_data)
 {
 
-  LOG_INF("sending (not really): %s\n", string);
+  LOG_INF("sending: %s\n", string);
   // client_get_send();
 
 
@@ -820,7 +702,7 @@ int coap_cloud_send(char* string)//const struct coap_cloud_data *const data) // 
 
 	// coap_init(AF_INET);
 
-	char *path = "test";
+	char *path = "testing";
 	int err;
 	struct coap_packet request;
 	uint8_t data[100];
@@ -828,9 +710,12 @@ int coap_cloud_send(char* string)//const struct coap_cloud_data *const data) // 
 
 	coap_packet_init(&request, data, sizeof(data),
                  1, COAP_TYPE_NON_CON, 8, coap_next_token(),
-                 COAP_METHOD_GET, coap_next_id());
+                 COAP_METHOD_PUT, coap_next_id());
 
   /* Append options */
+	// err = coap_packet_append_option(&request, COAP_OPTION_URI_PATH,
+  //     (u8_t *)CONFIG_COAP_RESOURCE,
+  //     strlen(CONFIG_COAP_RESOURCE));
   coap_packet_append_option(&request, COAP_OPTION_URI_PATH,
                           path, strlen(path));
 
