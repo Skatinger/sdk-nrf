@@ -15,7 +15,7 @@
 
 #include <logging/log.h>
 
-LOG_MODULE_REGISTER(coap_cloud, CONFIG_NRF_CLOUD_LOG_LEVEL);
+LOG_MODULE_REGISTER(coap_cloud, CONFIG_COAP_CLOUD_LOG_LEVEL);
 // LOG_MODULE_REGISTER(coap_cloud, 0);
 
 //BUILD_ASSERT(sizeof(CONFIG_NRF_CLOUD_BROKER_HOST_NAME) > 1,
@@ -756,6 +756,8 @@ static int connection_poll_start(void)
 	// 	return -EINPROGRESS;
 	// }
 
+	printk("inside connection_poll_start");
+
 	atomic_set(&disconnect_requested, 0);
 	k_sem_give(&connection_poll_sem);
 
@@ -897,8 +899,8 @@ int coap_cloud_connect(struct coap_cloud_config *const config)
 
 	printk("now in coap cloud connect\n");
 
-	// if (IS_ENABLED(CONFIG_COAP_CLOUD_CONNECTION_POLL_THREAD)) {
-    if(1){
+	if (IS_ENABLED(CONFIG_COAP_CLOUD_CONNECTION_POLL_THREAD)) {
+    // if(1){
 		err = connection_poll_start();
 		printk("got to connection_poll_start\n");
 	} else {
@@ -1003,7 +1005,7 @@ int coap_cloud_init(const struct coap_cloud_config *const config,
 // 		return err;
 // 	}
 // #endif
-printk("is it defined ............?\n");
+// printk("is it defined ............?\n");
 #if !defined(CONFIG_CLOUD_API)
 printk("in coap_cloud_init, CONFIG_CLOUD_API is not defined\n");
 	module_evt_handler = event_handler;
@@ -1033,6 +1035,7 @@ void mqtt_cloud_cloud_poll(void)
 #endif
 
 start:
+  printk("POLL ::START::\n");
 	k_sem_take(&connection_poll_sem, K_FOREVER);
 	atomic_set(&connection_poll_active, 1);
 
@@ -1052,6 +1055,9 @@ start:
 	}
 
 	// err = mqtt_connect(&client);
+	// set coap connection
+	// err = coap_cloud_connect(&client);
+	err = 0;
 	if (err) {
 		LOG_ERR("mqtt_connect, error: %d", err);
 	}
@@ -1079,8 +1085,9 @@ start:
 		LOG_DBG("AWS broker connection request sent.");
 	}
 #endif
-
-	fds[0].fd = client.transport.tls.sock;
+  // coap_client struct has no member transport etc, only a sock
+	//fds[0].fd = client.transport.tls.sock;
+	fds[0].fd = client.sock;
 	fds[0].events = POLLIN;
 
 	/* Only disconnect events will occur below */
@@ -1091,6 +1098,7 @@ start:
 #endif
 
 	while (true) {
+		printk("in while of poll");
 		err = poll(fds, ARRAY_SIZE(fds), COAP_CLOUD_POLL_TIMEOUT_MS);
 
 		if (err == 0) {
@@ -1226,7 +1234,8 @@ static int c_ep_subscriptions_add(const struct cloud_backend *const backend,
 
 static int c_connect(const struct cloud_backend *const backend)
 {
-	return coap_cloud_connect(NULL);
+	printk("c_connect called by main:cloud_connect(cloud_backend)");
+	return coap_cloud_connect(backend);
 }
 
 static int c_disconnect(const struct cloud_backend *const backend)

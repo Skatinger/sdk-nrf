@@ -529,7 +529,7 @@ static void cloud_connect_work_fn(struct k_work *work)
 {
 	int ret;
 
-	LOG_INF("Connecting to cloud, attempt %d of %d",
+	LOG_INF("Connecting to cloud, attempt %d of %d in cloud_connect_work_fn",
 	       atomic_get(&cloud_connect_attempts),
 		   CONFIG_CLOUD_CONNECT_COUNT_MAX);
 
@@ -550,7 +550,7 @@ static void cloud_connect_work_fn(struct k_work *work)
 		 */
 		cloud_connect_error_handler(ret);
 	} else {
-		LOG_INF("Cloud connection request sent.");
+		LOG_INF("Cloud connection request sent (main).");
                 printk("err: %d  %d\n", CLOUD_CONNECT_RES_SUCCESS, ret);
 		LOG_INF("Connection response timeout is set to %d seconds.",
 		       CLOUD_CONNACK_WAIT_DURATION / MSEC_PER_SEC);
@@ -1337,6 +1337,8 @@ void cloud_event_handler(const struct cloud_backend *const backend,
 			 void *user_data)
 {
 	ARG_UNUSED(user_data);
+
+	printk("=============== cloud event handler received event\n");
 
 	switch (evt->type) {
 	case CLOUD_EVT_CONNECTED:

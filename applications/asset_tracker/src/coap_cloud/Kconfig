@@ -79,10 +79,10 @@ config COAP_CLOUD_TOPIC_DELETE_ACCEPTED_SUBSCRIBE
 config COAP_CLOUD_TOPIC_DELETE_REJECTED_SUBSCRIBE
     bool "Subscribe to delete rejected shadow topic, $aws/things/<thing-name>/shadow/delete/rejected"
 
-# config COAP_CLOUD_CONNECTION_POLL_THREAD
-#    bool "Enable polling on MQTT socket in AWS IoT backend"
+config COAP_CLOUD_CONNECTION_POLL_THREAD
+    bool "Enable polling on COAP socket in backend to monitor connection"
 
-COAP_CLOUD_CONNECTION_POLL_THREAD=y
+# CONFIG_COAP_CLOUD_CONNECTION_POLL_THREAD=y
 
 module=COAP_CLOUD
 module-dep=LOG
