@@ -95,10 +95,24 @@ static char delete_rejected_topic[DELETE_REJECTED_TOPIC_LEN + 1];
 // static char tx_buffer[CONFIG_COAP_CLOUD_COAP_RX_TX_BUFFER_LEN];
 // static char payload_buf[CONFIG_COAP_CLOUD_COAP_PAYLOAD_BUFFER_LEN];
 
+
+// COAP stuff
+#define APP_COAP_SEND_INTERVAL_MS 5000
+#define APP_COAP_MAX_MSG_LEN 1280
+#define APP_COAP_VERSION 1
+
+#define CONFIG_COAP_RESOURCE "obs"
+#define CONFIG_COAP_SERVER_HOSTNAME "californium.eclipse.org"
+// #define MESSAGE_ID u16_t
+
 static struct coap_client client;
 // static struct sockaddr_storage broker;
 static struct sockaddr_in broker; // TODO use ipv6 eventually
 static int sock;
+static u16_t next_token;
+#define MESSAGE_ID next_token
+static u8_t coap_buf[APP_COAP_MAX_MSG_LEN];
+
 
 #if defined(CONFIG_CLOUD_API)
 static struct cloud_backend *coap_cloud_backend;
@@ -755,10 +769,86 @@ int coap_cloud_input(void)
 	return 0; //mqtt_input(&client);
 }
 
+
+/* EXPERIMENTAL */
+// static int client_get_send(void)
+// {
+// 	int err;
+// 	struct coap_packet request;
+//
+//
+// 	next_token++;
+//
+// 	err = coap_packet_init(&request, coap_buf, sizeof(coap_buf),
+// 			       APP_COAP_VERSION, COAP_TYPE_NON_CON,
+// 			       sizeof(next_token), (u8_t *)&next_token,
+// 			       COAP_METHOD_GET, MESSAGE_ID); // coap_next_id());
+// 	if (err < 0) {
+// 		printk("Failed to create CoAP request, %d\n", err);
+// 		return err;
+// 	}
+//
+// 	err = coap_packet_append_option(&request, COAP_OPTION_URI_PATH,
+// 					(u8_t *)CONFIG_COAP_RESOURCE,
+// 					strlen(CONFIG_COAP_RESOURCE));
+// 	if (err < 0) {
+// 		printk("Failed to encode CoAP option, %d\n", err);
+// 		return err;
+// 	}
+//
+// 	err = send(sock, request.data, request.offset, 0);
+// 	if (err < 0) {
+// 		printk("Failed to send CoAP request, %d\n", errno);
+// 		return -errno;
+// 	}
+//
+// 	printk("CoAP request sent: token 0x%04x\n", next_token);
+//
+// 	return 0;
+// }
+
 int coap_cloud_send(char* string)//const struct coap_cloud_data *const data) //  *const tx_data)
 {
 
   LOG_INF("sending (not really): %s\n", string);
+  // client_get_send();
+
+
+  // coap_init(AF_INET);
+
+
+
+	// coap_init(AF_INET);
+
+	char *path = "test";
+	int err;
+	struct coap_packet request;
+	uint8_t data[100];
+	uint8_t payload[20];
+
+	coap_packet_init(&request, data, sizeof(data),
+                 1, COAP_TYPE_NON_CON, 8, coap_next_token(),
+                 COAP_METHOD_GET, coap_next_id());
+
+  /* Append options */
+  coap_packet_append_option(&request, COAP_OPTION_URI_PATH,
+                          path, strlen(path));
+
+  /* Append Payload marker if you are going to add payload */
+  coap_packet_append_payload_marker(&request);
+
+  /* Append payload */
+  coap_packet_append_payload(&request, (uint8_t *)payload,
+                           sizeof(payload) - 1);
+
+  err = send(sock, request.data, request.offset, 0);
+	if (err < 0) {
+	  printk("Failed to send CoAP request, %d\n", errno);
+	  return -errno;
+  }
+
+	printk("CoAP request sent: token 0x%04x\n", next_token);
+
 	return 0; // mqtt_publish(&client, &param);
 }
 
@@ -847,6 +937,9 @@ int coap_cloud_init(const struct coap_cloud_config *const config,
 {
 
 	int err;
+
+  // token for coap testing, can be removed if not used anywhere anymore
+	next_token = sys_rand32_get();
 
 
 #if !defined(CONFIG_CLOUD_API)
