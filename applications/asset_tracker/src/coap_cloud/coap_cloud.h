@@ -203,7 +203,6 @@ int coap_cloud_disconnect(void);
  *  @return 0 If successful.
  *            Otherwise, a (negative) error code is returned.
  */
-int coap_cloud_send(char* string);//const struct *const coap_cloud_data); // TODO add data *const tx_data);
 
 /** @brief Get data from AWS IoT broker
  *
@@ -218,7 +217,6 @@ int coap_cloud_input(void);
  *  @return 0 If successful.
  *            Otherwise, a (negative) error code is returned.
  */
-int coap_cloud_ping(void);
 
 /** @brief Add a list of application specific topics that will be subscribed to
  *         upon connection to AWS IoT broker.

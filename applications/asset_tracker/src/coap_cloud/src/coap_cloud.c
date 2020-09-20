@@ -16,28 +16,24 @@
 #include <logging/log.h>
 
 LOG_MODULE_REGISTER(coap_cloud, CONFIG_COAP_CLOUD_LOG_LEVEL);
-// LOG_MODULE_REGISTER(coap_cloud, 0);
 
-//BUILD_ASSERT(sizeof(CONFIG_NRF_CLOUD_BROKER_HOST_NAME) > 1,
-	//	 "AWS IoT hostname not set");
+// #if defined(CONFIG_COAP_CLOUD_IPV6)
+// // #define AWS_AF_FAMILY AF_INET6
+// #else
+// #define AWS_AF_FAMILY AF_INET
+// #endif
 
-#if defined(CONFIG_COAP_CLOUD_IPV6)
-#define AWS_AF_FAMILY AF_INET6
-#else
-#define AWS_AF_FAMILY AF_INET
-#endif
+// #define AWS_TOPIC "things/"
+// #define AWS_TOPIC_LEN (sizeof(AWS_TOPIC) - 1)
 
-#define AWS_TOPIC "things/"
-#define AWS_TOPIC_LEN (sizeof(AWS_TOPIC) - 1)
-
-#define AWS_CLIENT_ID_PREFIX "%s"
-#define AWS_CLIENT_ID_LEN_MAX CONFIG_COAP_CLOUD_CLIENT_ID_MAX_LEN
+// #define AWS_CLIENT_ID_PREFIX "%s"
+// #define AWS_CLIENT_ID_LEN_MAX CONFIG_COAP_CLOUD_CLIENT_ID_MAX_LEN
 
 // #define GET_TOPIC AWS_TOPIC "%s/shadow/get"
 // #define GET_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 11)
 
 // #define AWS_TOPIC "%s/shadow/update"
-#define UPDATE_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 14)
+// #define UPDATE_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 14)
 
 // #define AWS_TOPIC "%s/shadow/delete"
 // #define DELETE_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 14)
@@ -47,47 +43,47 @@ LOG_MODULE_REGISTER(coap_cloud, CONFIG_COAP_CLOUD_LOG_LEVEL);
 // static char update_topic[UPDATE_TOPIC_LEN + 1];
 // static char delete_topic[DELETE_TOPIC_LEN + 1];
 
-#if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_ACCEPTED_SUBSCRIBE)
-#define UPDATE_ACCEPTED_TOPIC AWS_TOPIC "%s/shadow/update/accepted"
-#define UPDATE_ACCEPTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 23)
-static char update_accepted_topic[UPDATE_ACCEPTED_TOPIC_LEN + 1];
-#endif
+// #if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_ACCEPTED_SUBSCRIBE)
+// // #define UPDATE_ACCEPTED_TOPIC AWS_TOPIC "%s/shadow/update/accepted"
+// // #define UPDATE_ACCEPTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 23)
+// static char update_accepted_topic[UPDATE_ACCEPTED_TOPIC_LEN + 1];
+// #endif
+//
+// #if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_REJECTED_SUBSCRIBE)
+// // #define UPDATE_REJECTED_TOPIC AWS_TOPIC "%s/shadow/update/rejected"
+// // #define UPDATE_REJECTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 23)
+// static char update_rejected_topic[UPDATE_REJECTED_TOPIC_LEN + 1];
+// #endif
+//
+// #if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_DELTA_SUBSCRIBE)
+// // #define UPDATE_DELTA_TOPIC AWS_TOPIC "%s/shadow/update/delta"
+// // #define UPDATE_DELTA_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 20)
+// static char update_delta_topic[UPDATE_DELTA_TOPIC_LEN + 1];
+// #endif
+//
+// #if defined(CONFIG_COAP_CLOUD_TOPIC_GET_ACCEPTED_SUBSCRIBE)
+// // #define GET_ACCEPTED_TOPIC AWS_TOPIC "%s/shadow/get/accepted"
+// // #define GET_ACCEPTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 20)
+// static char get_accepted_topic[GET_ACCEPTED_TOPIC_LEN + 1];
+// #endif
 
-#if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_REJECTED_SUBSCRIBE)
-#define UPDATE_REJECTED_TOPIC AWS_TOPIC "%s/shadow/update/rejected"
-#define UPDATE_REJECTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 23)
-static char update_rejected_topic[UPDATE_REJECTED_TOPIC_LEN + 1];
-#endif
+// #if defined(CONFIG_COAP_CLOUD_TOPIC_GET_REJECTED_SUBSCRIBE)
+// // #define GET_REJECTED_TOPIC AWS_TOPIC "%s/shadow/get/rejected"
+// // #define GET_REJECTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 20)
+// static char get_rejected_topic[GET_REJECTED_TOPIC_LEN + 1];
+// #endif
 
-#if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_DELTA_SUBSCRIBE)
-#define UPDATE_DELTA_TOPIC AWS_TOPIC "%s/shadow/update/delta"
-#define UPDATE_DELTA_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 20)
-static char update_delta_topic[UPDATE_DELTA_TOPIC_LEN + 1];
-#endif
-
-#if defined(CONFIG_COAP_CLOUD_TOPIC_GET_ACCEPTED_SUBSCRIBE)
-#define GET_ACCEPTED_TOPIC AWS_TOPIC "%s/shadow/get/accepted"
-#define GET_ACCEPTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 20)
-static char get_accepted_topic[GET_ACCEPTED_TOPIC_LEN + 1];
-#endif
-
-#if defined(CONFIG_COAP_CLOUD_TOPIC_GET_REJECTED_SUBSCRIBE)
-#define GET_REJECTED_TOPIC AWS_TOPIC "%s/shadow/get/rejected"
-#define GET_REJECTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 20)
-static char get_rejected_topic[GET_REJECTED_TOPIC_LEN + 1];
-#endif
-
-#if defined(CONFIG_COAP_CLOUD_TOPIC_DELETE_ACCEPTED_SUBSCRIBE)
-#define DELETE_ACCEPTED_TOPIC AWS_TOPIC "%s/shadow/delete/accepted"
-#define DELETE_ACCEPTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 23)
-static char delete_accepted_topic[DELETE_ACCEPTED_TOPIC_LEN + 1];
-#endif
-
-#if defined(CONFIG_COAP_CLOUD_TOPIC_DELETE_REJECTED_SUBSCRIBE)
-#define DELETE_REJECTED_TOPIC AWS_TOPIC "%s/shadow/delete/rejected"
-#define DELETE_REJECTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 23)
-static char delete_rejected_topic[DELETE_REJECTED_TOPIC_LEN + 1];
-#endif
+// #if defined(CONFIG_COAP_CLOUD_TOPIC_DELETE_ACCEPTED_SUBSCRIBE)
+// // #define DELETE_ACCEPTED_TOPIC AWS_TOPIC "%s/shadow/delete/accepted"
+// // #define DELETE_ACCEPTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 23)
+// static char delete_accepted_topic[DELETE_ACCEPTED_TOPIC_LEN + 1];
+// #endif
+//
+// #if defined(CONFIG_COAP_CLOUD_TOPIC_DELETE_REJECTED_SUBSCRIBE)
+// // #define DELETE_REJECTED_TOPIC AWS_TOPIC "%s/shadow/delete/rejected"
+// // #define DELETE_REJECTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 23)
+// static char delete_rejected_topic[DELETE_REJECTED_TOPIC_LEN + 1];
+// #endif
 
 // static struct coap_cloud_app_topic_data app_topic_data;
 
@@ -101,6 +97,7 @@ static char delete_rejected_topic[DELETE_REJECTED_TOPIC_LEN + 1];
 #define APP_COAP_MAX_MSG_LEN 1280
 #define APP_COAP_VERSION 1
 
+// TODO add to config files
 #define CONFIG_COAP_RESOURCE "other/block"// "obs"
 #define CONFIG_COAP_SERVER_HOSTNAME "83.150.54.152"
   //"californium.eclipse.org"
@@ -316,27 +313,7 @@ static void coap_evt_handler(struct coap_client *const c,
 		coap_cloud_evt.type = COAP_CLOUD_EVT_DISCONNECTED;
 		coap_cloud_notify_event(&coap_cloud_evt);
 #endif
-	// break;
-	// case COAP_CLOUD_EVT_PUBLISH: {
-	// 	const struct mqtt_publish_param *p = &coap_evt->param.publish;
-	//
-	// 	LOG_DBG("COAP_EVT_PUBLISH: id = %d len = %d ",
-	// 		p->message_id,
-	// 		p->message.payload.len);
-	//
-	// 	err = publish_get_payload(c, p->message.payload.len);
-	// 	if (err) {
-	// 		LOG_ERR("publish_get_payload, error: %d", err);
-	// 		break;
-	// 	}
-	//
-	// 	if (p->message.topic.qos == COAP_QOS_1_AT_LEAST_ONCE) {
-	// 		const struct mqtt_puback_param ack = {
-	// 			.message_id = p->message_id
-	// 		};
-	//
-	// 		mqtt_publish_qos1_ack(c, &ack);
-	// 	}
+
 
 #if defined(CONFIG_CLOUD_API)
 		cloud_evt.type = CLOUD_EVT_DATA_RECEIVED;
@@ -377,6 +354,7 @@ static void coap_evt_handler(struct coap_client *const c,
 	// }
 }
 
+/* helper function to parse ip adresses to sockaddr_in struct */
 static struct sockaddr_in parse_ip_address(int port, char *ip_address) {
   struct sockaddr_in addr;
 	// struct sockaddr_storage addr;
@@ -395,58 +373,20 @@ static struct sockaddr_in parse_ip_address(int port, char *ip_address) {
   return addr;
 }
 
-// #if defined(CONFIG_COAP_CLOUD_STATIC_IPV4)
-// static int broker_init(void)
-// {
-//
-// 	printk("hello from broker_init\n");
-// 	struct sockaddr_in *broker4 =
-// 		((struct sockaddr_in *)&broker);
-//
-// 	inet_pton(AF_INET, CONFIG_COAP_CLOUD_STATIC_IPV4_ADDR,
-// 		  &broker->sin_addr);
-// 	broker4->sin_family = AF_INET;
-// 	broker4->sin_port = htons(CONFIG_COAP_CLOUD_PORT);
-//
-// 	LOG_DBG("IPv4 Address %s", log_strdup(CONFIG_COAP_CLOUD_STATIC_IPV4_ADDR));
-//
-// 	return 0;
-// }
-// #else
+
 static int broker_init(void) {
 
 	int err;
-	// struct addrinfo *result;
-	// struct addrinfo *addr;
-	// struct addrinfo hints = {
-	// 	.ai_family = AF_INET,
-	// 	.ai_socktype = SOCK_STREAM
-	// };
 
-	// printf("trying to connect to host: %s\n", CONFIG_COAP_CLOUD_BROKER_HOST_NAME);
+	char *ip_address = CONFIG_COAP_SERVER_HOSTNAME; // "83.150.54.152";
+	broker = parse_ip_address(5683, ip_address);
 
-
-	// err = getaddrinfo(CONFIG_COAP_CLOUD_BROKER_HOST_NAME,
-	// 		  NULL, &hints, &result);
-	// if (err) {
-	// 	LOG_ERR("getaddrinfo, error %d", err);
-	// 	return -ECHILD;
-	// }
-
-	// addr = result;
-
-	// while (addr != NULL) {
-
-	printk("in broker_init\n");
-
-		char *ip_address = "83.150.54.152";
-		broker = parse_ip_address(5683, ip_address);
-
-		sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP); //iproto_ip
-	  if (sock < 0) {
-	    printk("Failed to create CoAP socket: %d.\n", errno);
-	    return -errno;
-	  }
+	// initialize socket for coap message sending
+	sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	 if (sock < 0) {
+	   LOG_ERR("Failed to create CoAP socket: %d.\n", errno);
+	   return -errno;
+	 }
 
 		err = connect(sock, (struct sockaddr *)&broker, sizeof(struct sockaddr_in));
 	  if (err < 0) {
@@ -635,12 +575,6 @@ static int connect_error_translate(const int err)
 	}
 }
 
-int coap_cloud_ping(void)
-{
-	// return mqtt_ping(&client);
-	return 0;
-}
-
 int coap_cloud_keepalive_time_left(void)
 {
 	return 5; // (int)mqtt_keepalive_time_left(&client);
@@ -689,53 +623,53 @@ int coap_cloud_input(void)
 // 	return 0;
 // }
 
-int coap_cloud_send(char* string)//const struct coap_cloud_data *const data) //  *const tx_data)
-{
+// int coap_cloud_send(const struct cloud_msg *const msg)//const struct coap_cloud_data *const data) //  *const tx_data)
+// {
 
-  LOG_INF("sending: %s\n", string);
-  // client_get_send();
-
-
-  // coap_init(AF_INET);
-
-
-
-	// coap_init(AF_INET);
-
-	char *path = "testing";
-	int err;
-	struct coap_packet request;
-	uint8_t data[100];
-	uint8_t payload[20];
-
-	coap_packet_init(&request, data, sizeof(data),
-                 1, COAP_TYPE_NON_CON, 8, coap_next_token(),
-                 COAP_METHOD_PUT, coap_next_id());
-
-  /* Append options */
-	// err = coap_packet_append_option(&request, COAP_OPTION_URI_PATH,
-  //     (u8_t *)CONFIG_COAP_RESOURCE,
-  //     strlen(CONFIG_COAP_RESOURCE));
-  coap_packet_append_option(&request, COAP_OPTION_URI_PATH,
-                          path, strlen(path));
-
-  /* Append Payload marker if you are going to add payload */
-  coap_packet_append_payload_marker(&request);
-
-  /* Append payload */
-  coap_packet_append_payload(&request, (uint8_t *)payload,
-                           sizeof(payload) - 1);
-
-  err = send(sock, request.data, request.offset, 0);
-	if (err < 0) {
-	  printk("Failed to send CoAP request, %d\n", errno);
-	  return -errno;
-  }
-
-	printk("CoAP request sent: token 0x%04x\n", next_token);
-
-	return 0; // mqtt_publish(&client, &param);
-}
+	// LOG_INF("MESSAGE: %s\n", msg->buf);
+  // // client_get_send();
+	//
+	//
+  // // coap_init(AF_INET);
+	//
+	//
+	//
+	// // coap_init(AF_INET);
+	//
+	// char *path = "testing";
+	// int err;
+	// struct coap_packet request;
+	// uint8_t data[100];
+	// uint8_t payload[20];
+	//
+	// coap_packet_init(&request, data, sizeof(data),
+  //                1, COAP_TYPE_NON_CON, 8, coap_next_token(),
+  //                COAP_METHOD_PUT, coap_next_id());
+	//
+  // /* Append options */
+	// // err = coap_packet_append_option(&request, COAP_OPTION_URI_PATH,
+  // //     (u8_t *)CONFIG_COAP_RESOURCE,
+  // //     strlen(CONFIG_COAP_RESOURCE));
+  // coap_packet_append_option(&request, COAP_OPTION_URI_PATH,
+  //                         path, strlen(path));
+	//
+  // /* Append Payload marker if you are going to add payload */
+  // coap_packet_append_payload_marker(&request);
+	//
+  // /* Append payload */
+  // coap_packet_append_payload(&request, (uint8_t *)payload,
+  //                          sizeof(payload) - 1);
+	//
+  // err = send(sock, request.data, request.offset, 0);
+	// if (err < 0) {
+	//   printk("Failed to send CoAP request, %d\n", errno);
+	//   return -errno;
+  // }
+	//
+	// printk("CoAP request sent: token 0x%04x\n", next_token);
+	//
+	// return 0; // mqtt_publish(&client, &param);
+// }
 
 int coap_cloud_disconnect(void)
 {
@@ -925,7 +859,7 @@ start:
 		if (err == 0) {
 			if (coap_cloud_keepalive_time_left() <
 			    COAP_CLOUD_POLL_TIMEOUT_MS) {
-				coap_cloud_ping();
+				c_ping();
 			}
 			continue;
 		}
@@ -1064,10 +998,56 @@ static int c_disconnect(const struct cloud_backend *const backend)
 static int c_send(const struct cloud_backend *const backend,
 		  const struct cloud_msg *const msg)
 {
+	LOG_INF("C_SEND called, MESSAGE: %s\n", msg->buf);
 
-	printk("C_SEND called\n");
+	int err;
 
-	return coap_cloud_send("string");
+  // path to resource on server
+	char *path = "testing";
+	struct coap_packet request;
+	uint8_t data[100];
+
+  /* copy asset_tracker msg to coap data buffer */
+	uint8_t payload[strlen(msg->buf)];
+  strcpy(payload, msg->buf);
+
+  /* initialize coap packet */
+	err = coap_packet_init(&request, data, sizeof(data),
+								 1, COAP_TYPE_NON_CON, 8, coap_next_token(),
+								 COAP_METHOD_PUT, coap_next_id());
+	if (err < 0) {
+		LOG_ERR("Failed to initialize coap packet, %d\n", errno);
+		return -errno;
+ 	}
+
+  /* append options */
+	coap_packet_append_option(&request, COAP_OPTION_URI_PATH,
+													path, strlen(path));
+	if (err < 0) {
+		LOG_ERR("Failed to append coap packet options, %d\n", errno);
+		return -errno;
+	}
+
+	/* Append Payload marker if going to add payload */
+	coap_packet_append_payload_marker(&request);
+
+	/* Append payload (data received from asset_tracker) */
+	coap_packet_append_payload(&request, (uint8_t *)payload,
+													 sizeof(payload) - 1);
+
+	err = send(sock, request.data, request.offset, 0);
+	if (err < 0) {
+		LOG_ERR("Failed to send CoAP request, %d\n", errno);
+		return -errno;
+	}
+
+	LOG_INF("request content: %s\n", payload);
+
+	// TODO free payload?
+
+	LOG_INF("err: %d\n", err);
+
+	return 0;
 }
 
 static int c_input(const struct cloud_backend *const backend)
@@ -1075,12 +1055,14 @@ static int c_input(const struct cloud_backend *const backend)
 	return coap_cloud_input();
 }
 
+/* called periodically to keep connection to broker alive
+ * @return 0 if successful, error code otherwies */
 static int c_ping(const struct cloud_backend *const backend)
 {
 	printk("c_ping called\n");
-	return coap_cloud_ping();
+	return 0;
 }
-
+// TODO
 static int c_keepalive_time_left(const struct cloud_backend *const backend)
 {
 	return 5; // coap_cloud_keepalive_time_left();
