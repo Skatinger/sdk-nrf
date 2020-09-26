@@ -4,98 +4,28 @@
 #include <net/cloud.h>
 #include <random/rand32.h>
 #include <stdio.h>
-
 #include <net/coap_utils.h>
 #include <net/coap.h>
-// #include <subsys/net/lib/coap_utils/>
 
-#if defined(CONFIG_AWS_FOTA)
-#include <net/aws_fota.h>
-#endif
+// #if defined(CONFIG_AWS_FOTA)
+// #include <net/aws_fota.h>
+// #endif
 
 #include <logging/log.h>
 
 LOG_MODULE_REGISTER(coap_cloud, CONFIG_COAP_CLOUD_LOG_LEVEL);
-
-// #if defined(CONFIG_COAP_CLOUD_IPV6)
-// // #define AWS_AF_FAMILY AF_INET6
-// #else
-// #define AWS_AF_FAMILY AF_INET
-// #endif
-
-// #define AWS_TOPIC "things/"
-// #define AWS_TOPIC_LEN (sizeof(AWS_TOPIC) - 1)
-
-// #define AWS_CLIENT_ID_PREFIX "%s"
-// #define AWS_CLIENT_ID_LEN_MAX CONFIG_COAP_CLOUD_CLIENT_ID_MAX_LEN
-
-// #define GET_TOPIC AWS_TOPIC "%s/shadow/get"
-// #define GET_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 11)
-
-// #define AWS_TOPIC "%s/shadow/update"
-// #define UPDATE_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 14)
-
-// #define AWS_TOPIC "%s/shadow/delete"
-// #define DELETE_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 14)
-
-// static char client_id_buf[AWS_CLIENT_ID_LEN_MAX + 1];
-// static char get_topic[GET_TOPIC_LEN + 1];
-// static char update_topic[UPDATE_TOPIC_LEN + 1];
-// static char delete_topic[DELETE_TOPIC_LEN + 1];
-
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_ACCEPTED_SUBSCRIBE)
-// // #define UPDATE_ACCEPTED_TOPIC AWS_TOPIC "%s/shadow/update/accepted"
-// // #define UPDATE_ACCEPTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 23)
-// static char update_accepted_topic[UPDATE_ACCEPTED_TOPIC_LEN + 1];
-// #endif
-//
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_REJECTED_SUBSCRIBE)
-// // #define UPDATE_REJECTED_TOPIC AWS_TOPIC "%s/shadow/update/rejected"
-// // #define UPDATE_REJECTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 23)
-// static char update_rejected_topic[UPDATE_REJECTED_TOPIC_LEN + 1];
-// #endif
-//
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_UPDATE_DELTA_SUBSCRIBE)
-// // #define UPDATE_DELTA_TOPIC AWS_TOPIC "%s/shadow/update/delta"
-// // #define UPDATE_DELTA_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 20)
-// static char update_delta_topic[UPDATE_DELTA_TOPIC_LEN + 1];
-// #endif
-//
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_GET_ACCEPTED_SUBSCRIBE)
-// // #define GET_ACCEPTED_TOPIC AWS_TOPIC "%s/shadow/get/accepted"
-// // #define GET_ACCEPTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 20)
-// static char get_accepted_topic[GET_ACCEPTED_TOPIC_LEN + 1];
-// #endif
-
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_GET_REJECTED_SUBSCRIBE)
-// // #define GET_REJECTED_TOPIC AWS_TOPIC "%s/shadow/get/rejected"
-// // #define GET_REJECTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 20)
-// static char get_rejected_topic[GET_REJECTED_TOPIC_LEN + 1];
-// #endif
-
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_DELETE_ACCEPTED_SUBSCRIBE)
-// // #define DELETE_ACCEPTED_TOPIC AWS_TOPIC "%s/shadow/delete/accepted"
-// // #define DELETE_ACCEPTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 23)
-// static char delete_accepted_topic[DELETE_ACCEPTED_TOPIC_LEN + 1];
-// #endif
-//
-// #if defined(CONFIG_COAP_CLOUD_TOPIC_DELETE_REJECTED_SUBSCRIBE)
-// // #define DELETE_REJECTED_TOPIC AWS_TOPIC "%s/shadow/delete/rejected"
-// // #define DELETE_REJECTED_TOPIC_LEN (AWS_TOPIC_LEN + AWS_CLIENT_ID_LEN_MAX + 23)
-// static char delete_rejected_topic[DELETE_REJECTED_TOPIC_LEN + 1];
-// #endif
-
-// static struct coap_cloud_app_topic_data app_topic_data;
-
-// static char rx_buffer[CONFIG_COAP_CLOUD_COAP_RX_TX_BUFFER_LEN];
-// static char tx_buffer[CONFIG_COAP_CLOUD_COAP_RX_TX_BUFFER_LEN];
-// static char payload_buf[CONFIG_COAP_CLOUD_COAP_PAYLOAD_BUFFER_LEN];
 
 
 // COAP stuff
 #define APP_COAP_SEND_INTERVAL_MS 5000
 #define APP_COAP_MAX_MSG_LEN 1280
 #define APP_COAP_VERSION 1
+
+// registered resources
+static const char * const obs_path[] = { "obs", NULL };
+
+static const char * const test_path[] = { "testing", NULL };
+
 
 // TODO add to config files
 #define CONFIG_COAP_RESOURCE "other/block"// "obs"
@@ -137,77 +67,349 @@ static void coap_cloud_notify_event(const struct coap_cloud_evt *evt)
 #endif
 
 
-#if defined(CONFIG_AWS_FOTA)
-static void aws_fota_cb_handler(struct aws_fota_event *fota_evt)
-{
-#if defined(CONFIG_CLOUD_API)
-	struct cloud_backend_config *config = coap_cloud_backend->config;
-	struct cloud_event cloud_evt = { 0 };
-#else
-	struct coap_cloud_evt coap_cloud_evt = { 0 };
-#endif
+// #if defined(CONFIG_AWS_FOTA)
+// static void aws_fota_cb_handler(struct aws_fota_event *fota_evt)
+// {
+// #if defined(CONFIG_CLOUD_API)
+// 	struct cloud_backend_config *config = coap_cloud_backend->config;
+// 	struct cloud_event cloud_evt = { 0 };
+// #else
+// 	struct coap_cloud_evt coap_cloud_evt = { 0 };
+// #endif
+//
+// 	if (fota_evt == NULL) {
+// 		return;
+// 	}
+//
+// 	switch (fota_evt->id) {
+// 	case AWS_FOTA_EVT_START:
+// 		LOG_DBG("AWS_FOTA_EVT_START");
+// #if defined(CONFIG_CLOUD_API)
+// 		cloud_evt.type = CLOUD_EVT_FOTA_START;
+// 		cloud_notify_event(coap_cloud_backend, &cloud_evt,
+// 				   config->user_data);
+// #else
+// 		coap_cloud_evt.type = COAP_CLOUD_EVT_FOTA_START;
+// 		coap_cloud_notify_event(&coap_cloud_evt);
+// #endif
+// 		break;
+// 	case AWS_FOTA_EVT_DONE:
+// 		LOG_DBG("AWS_FOTA_EVT_DONE");
+// #if defined(CONFIG_CLOUD_API)
+// 		cloud_evt.type = CLOUD_EVT_FOTA_DONE;
+// 		cloud_notify_event(coap_cloud_backend, &cloud_evt,
+// 				   config->user_data);
+// #else
+// 		coap_cloud_evt.type = COAP_CLOUD_EVT_FOTA_DONE;
+// 		coap_cloud_notify_event(&coap_cloud_evt);
+// #endif
+// 		break;
+// 	case AWS_FOTA_EVT_ERASE_PENDING:
+// 		LOG_DBG("AWS_FOTA_EVT_ERASE_PENDING");
+// #if defined(CONFIG_CLOUD_API)
+// 		cloud_evt.type = CLOUD_EVT_FOTA_ERASE_PENDING;
+// 		cloud_notify_event(coap_cloud_backend, &cloud_evt,
+// 				   config->user_data);
+// #else
+// 		coap_cloud_evt.type = COAP_CLOUD_EVT_FOTA_ERASE_PENDING;
+// 		coap_cloud_notify_event(&coap_cloud_evt);
+// #endif
+// 		break;
+// 	case AWS_FOTA_EVT_ERASE_DONE:
+// 		LOG_DBG("AWS_FOTA_EVT_ERASE_DONE");
+// #if defined(CONFIG_CLOUD_API)
+// 		cloud_evt.type = CLOUD_EVT_FOTA_ERASE_DONE;
+// 		cloud_notify_event(coap_cloud_backend, &cloud_evt,
+// 				   config->user_data);
+// #else
+// 		coap_cloud_evt.type = COAP_CLOUD_EVT_FOTA_ERASE_DONE;
+// 		coap_cloud_notify_event(&coap_cloud_evt);
+// #endif
+// 		break;
+// 	case AWS_FOTA_EVT_ERROR:
+// 		LOG_ERR("AWS_FOTA_EVT_ERROR");
+// 		break;
+// 	case AWS_FOTA_EVT_DL_PROGRESS:
+// 		LOG_DBG("AWS_FOTA_EVT_DL_PROGRESS");
+// 		break;
+// 	default:
+// 		LOG_ERR("Unknown FOTA event");
+// 		break;
+// 	}
+// }
+// #endif
 
-	if (fota_evt == NULL) {
-		return;
+
+
+// Zephyr code ================= start ====================
+
+static int send_simple_coap_request(uint8_t method)
+{
+	uint8_t payload[] = "payload";
+	struct coap_packet request;
+	const char * const *p;
+	uint8_t *data;
+	int r;
+
+	data = (uint8_t *)k_malloc(APP_COAP_MAX_MSG_LEN);
+	if (!data) {
+		return -ENOMEM;
 	}
 
-	switch (fota_evt->id) {
-	case AWS_FOTA_EVT_START:
-		LOG_DBG("AWS_FOTA_EVT_START");
-#if defined(CONFIG_CLOUD_API)
-		cloud_evt.type = CLOUD_EVT_FOTA_START;
-		cloud_notify_event(coap_cloud_backend, &cloud_evt,
-				   config->user_data);
-#else
-		coap_cloud_evt.type = COAP_CLOUD_EVT_FOTA_START;
-		coap_cloud_notify_event(&coap_cloud_evt);
-#endif
+	r = coap_packet_init(&request, data, APP_COAP_MAX_MSG_LEN,
+			     1, COAP_TYPE_CON, 8, coap_next_token(),
+			     method, coap_next_id());
+	if (r < 0) {
+		LOG_ERR("Failed to init CoAP message");
+		goto end;
+	}
+
+	for (p = test_path; p && *p; p++) {
+		r = coap_packet_append_option(&request, COAP_OPTION_URI_PATH,
+					      *p, strlen(*p));
+		if (r < 0) {
+			LOG_ERR("Unable add option to request");
+			goto end;
+		}
+	}
+
+	switch (method) {
+	case COAP_METHOD_GET:
+	case COAP_METHOD_DELETE:
 		break;
-	case AWS_FOTA_EVT_DONE:
-		LOG_DBG("AWS_FOTA_EVT_DONE");
-#if defined(CONFIG_CLOUD_API)
-		cloud_evt.type = CLOUD_EVT_FOTA_DONE;
-		cloud_notify_event(coap_cloud_backend, &cloud_evt,
-				   config->user_data);
-#else
-		coap_cloud_evt.type = COAP_CLOUD_EVT_FOTA_DONE;
-		coap_cloud_notify_event(&coap_cloud_evt);
-#endif
-		break;
-	case AWS_FOTA_EVT_ERASE_PENDING:
-		LOG_DBG("AWS_FOTA_EVT_ERASE_PENDING");
-#if defined(CONFIG_CLOUD_API)
-		cloud_evt.type = CLOUD_EVT_FOTA_ERASE_PENDING;
-		cloud_notify_event(coap_cloud_backend, &cloud_evt,
-				   config->user_data);
-#else
-		coap_cloud_evt.type = COAP_CLOUD_EVT_FOTA_ERASE_PENDING;
-		coap_cloud_notify_event(&coap_cloud_evt);
-#endif
-		break;
-	case AWS_FOTA_EVT_ERASE_DONE:
-		LOG_DBG("AWS_FOTA_EVT_ERASE_DONE");
-#if defined(CONFIG_CLOUD_API)
-		cloud_evt.type = CLOUD_EVT_FOTA_ERASE_DONE;
-		cloud_notify_event(coap_cloud_backend, &cloud_evt,
-				   config->user_data);
-#else
-		coap_cloud_evt.type = COAP_CLOUD_EVT_FOTA_ERASE_DONE;
-		coap_cloud_notify_event(&coap_cloud_evt);
-#endif
-		break;
-	case AWS_FOTA_EVT_ERROR:
-		LOG_ERR("AWS_FOTA_EVT_ERROR");
-		break;
-	case AWS_FOTA_EVT_DL_PROGRESS:
-		LOG_DBG("AWS_FOTA_EVT_DL_PROGRESS");
+
+	case COAP_METHOD_PUT:
+	case COAP_METHOD_POST:
+		r = coap_packet_append_payload_marker(&request);
+		if (r < 0) {
+			LOG_ERR("Unable to append payload marker");
+			goto end;
+		}
+
+		r = coap_packet_append_payload(&request, (uint8_t *)payload,
+					       sizeof(payload) - 1);
+		if (r < 0) {
+			LOG_ERR("Not able to append payload");
+			goto end;
+		}
+
 		break;
 	default:
-		LOG_ERR("Unknown FOTA event");
-		break;
+		r = -EINVAL;
+		goto end;
 	}
+
+	net_hexdump("Request", request.data, request.offset);
+
+	r = send(sock, request.data, request.offset, 0);
+
+end:
+	k_free(data);
+
+	return 0;
 }
-#endif
+
+static int send_simple_coap_msgs_and_wait_for_reply(void)
+{
+	uint8_t test_type = 0U;
+	int r;
+
+	while (1) {
+		switch (test_type) {
+		case 0:
+			/* Test CoAP GET method */
+			printk("\nCoAP client GET\n");
+			r = send_simple_coap_request(COAP_METHOD_GET);
+			if (r < 0) {
+				return r;
+			}
+
+			break;
+		case 1:
+			/* Test CoAP PUT method */
+			printk("\nCoAP client PUT\n");
+			r = send_simple_coap_request(COAP_METHOD_PUT);
+			if (r < 0) {
+				return r;
+			}
+
+			break;
+		case 2:
+			/* Test CoAP POST method*/
+			printk("\nCoAP client POST\n");
+			r = send_simple_coap_request(COAP_METHOD_POST);
+			if (r < 0) {
+				return r;
+			}
+
+			break;
+		case 3:
+			/* Test CoAP DELETE method*/
+			printk("\nCoAP client DELETE\n");
+			r = send_simple_coap_request(COAP_METHOD_DELETE);
+			if (r < 0) {
+				return r;
+			}
+
+			break;
+		default:
+			return 0;
+		}
+
+		r = process_simple_coap_reply();
+		if (r < 0) {
+			return r;
+		}
+
+		test_type++;
+	}
+
+	return 0;
+}
+
+static int send_obs_coap_request(void)
+{
+	struct coap_packet request;
+	const char * const *p;
+	uint8_t *data;
+	int r;
+
+	data = (uint8_t *)k_malloc(APP_COAP_MAX_MSG_LEN);
+	if (!data) {
+		return -ENOMEM;
+	}
+
+	r = coap_packet_init(&request, data, APP_COAP_MAX_MSG_LEN,
+			     1, COAP_TYPE_CON, 8, coap_next_token(),
+			     COAP_METHOD_GET, coap_next_id());
+	if (r < 0) {
+		LOG_ERR("Failed to init CoAP message");
+		goto end;
+	}
+
+	r = coap_append_option_int(&request, COAP_OPTION_OBSERVE, 0);
+	if (r < 0) {
+		LOG_ERR("Failed to append Observe option");
+		goto end;
+	}
+
+	for (p = obs_path; p && *p; p++) {
+		r = coap_packet_append_option(&request, COAP_OPTION_URI_PATH,
+					      *p, strlen(*p));
+		if (r < 0) {
+			LOG_ERR("Unable add option to request");
+			goto end;
+		}
+	}
+
+	net_hexdump("Request", request.data, request.offset);
+
+	r = send(sock, request.data, request.offset, 0);
+
+end:
+	k_free(data);
+
+	return r;
+}
+
+static int process_obs_coap_reply(void)
+{
+	struct coap_packet reply;
+	uint16_t id;
+	uint8_t token[8];
+	uint8_t *data;
+	uint8_t type;
+	uint8_t tkl;
+	int rcvd;
+	int ret;
+
+	wait();
+
+	data = (uint8_t *)k_malloc(APP_COAP_MAX_MSG_LEN);
+	if (!data) {
+		return -ENOMEM;
+	}
+
+	rcvd = recv(sock, data, APP_COAP_MAX_MSG_LEN, MSG_DONTWAIT);
+	if (rcvd == 0) {
+		ret = -EIO;
+		goto end;
+	}
+
+	if (rcvd < 0) {
+		if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			ret = 0;
+		} else {
+			ret = -errno;
+		}
+
+		goto end;
+	}
+
+	net_hexdump("Response", data, rcvd);
+
+	ret = coap_packet_parse(&reply, data, rcvd, NULL, 0);
+	if (ret < 0) {
+		LOG_ERR("Invalid data received");
+		goto end;
+	}
+
+	tkl = coap_header_get_token(&reply, (uint8_t *)token);
+	id = coap_header_get_id(&reply);
+
+	type = coap_header_get_type(&reply);
+	if (type == COAP_TYPE_ACK) {
+		ret = 0;
+	} else if (type == COAP_TYPE_CON) {
+		ret = send_obs_reply_ack(id, token, tkl);
+	}
+end:
+	k_free(data);
+
+	return ret;
+}
+
+
+// TODO do this in a seperate thread
+static int register_observer(void)
+{
+	uint8_t counter = 0U;
+	int r;
+
+	while (1) {
+		/* Test CoAP OBS GET method */
+		if (!counter) {
+			printk("\nCoAP client OBS GET\n");
+			r = send_obs_coap_request();
+			if (r < 0) {
+				return r;
+			}
+		} else {
+			printk("\nCoAP OBS Notification\n");
+		}
+
+		r = process_obs_coap_reply();
+		if (r < 0) {
+			return r;
+		}
+
+		counter++;
+
+		/* Unregister */
+		if (counter == 5U) {
+			/* TODO: Functionality can be verified byt waiting for
+			 * some time and make sure client shouldn't receive
+			 * any notifications. If client still receives
+			 * notifications means, Observer is not removed.
+			 */
+			return send_obs_reset_coap_request();
+		}
+	}
+
+	return 0;
+}
+
+// Zephyr code ================= end ====================
 
 static void coap_evt_handler(struct coap_client *const c,
 															const struct coap_evt *coap_evt) // TODO add client here struct coap_client *const c)
@@ -223,22 +425,22 @@ static void coap_evt_handler(struct coap_client *const c,
 	struct coap_cloud_evt coap_cloud_evt = { 0 };
 #endif
 
-#if defined(CONFIG_AWS_FOTA)
-	err = aws_fota_mqtt_evt_handler(c, coap_evt);
-	if (err == 0) {
-		/* Event handled by FOTA library so it can be skipped. */
-		return;
-	} else if (err < 0) {
-		LOG_ERR("aws_fota_mqtt_evt_handler, error: %d", err);
-		LOG_DBG("Disconnecting COAP client...");
-
-		atomic_set(&disconnect_requested, 1);
-		err = coap_disconnect(c);
-		if (err) {
-			LOG_ERR("Could not disconnect: %d", err);
-		}
-	}
-#endif
+// #if defined(CONFIG_AWS_FOTA)
+// 	err = aws_fota_mqtt_evt_handler(c, coap_evt);
+// 	if (err == 0) {
+// 		/* Event handled by FOTA library so it can be skipped. */
+// 		return;
+// 	} else if (err < 0) {
+// 		LOG_ERR("aws_fota_mqtt_evt_handler, error: %d", err);
+// 		LOG_DBG("Disconnecting COAP client...");
+//
+// 		atomic_set(&disconnect_requested, 1);
+// 		err = coap_disconnect(c);
+// 		if (err) {
+// 			LOG_ERR("Could not disconnect: %d", err);
+// 		}
+// 	}
+// #endif
 
   printf("in coap_evt_handler with type of event \n");
   // TODO switch over possible events (if any?)
@@ -395,48 +597,6 @@ static int broker_init(void) {
 	  }
 
 
-
-		// if ((addr->ai_addrlen == sizeof(struct sockaddr_in)) &&
-		    // (AWS_AF_FAMILY == AF_INET)) {
-			// struct sockaddr_in *broker4 = ((struct sockaddr_in *)&broker);
-			// char ipv4_addr[NET_IPV4_ADDR_LEN];
-			//
-			// broker4->sin_addr.s_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr.s_addr;
-			// broker4->sin_family = AF_INET;
-			// broker4->sin_port = htons(CONFIG_COAP_CLOUD_PORT);
-			//
-			// inet_ntop(AF_INET, &broker4->sin_addr.s_addr, ipv4_addr,
-			// 	  sizeof(ipv4_addr));
-			// LOG_DBG("IPv4 Address found %s", log_strdup(ipv4_addr));
-			// break;
-		// } else if ((addr->ai_addrlen == sizeof(struct sockaddr_in6)) &&
-		// 	   (AWS_AF_FAMILY == AF_INET6)) {
-		// 	struct sockaddr_in6 *broker6 =
-		// 		((struct sockaddr_in6 *)&broker);
-		// 	char ipv6_addr[NET_IPV6_ADDR_LEN];
-		//
-		// 	memcpy(broker6->sin6_addr.s6_addr,
-		// 	       ((struct sockaddr_in6 *)addr->ai_addr)
-		// 	       ->sin6_addr.s6_addr,
-		// 	       sizeof(struct in6_addr));
-		// 	broker6->sin6_family = AF_INET6;
-		// 	broker6->sin6_port = htons(CONFIG_COAP_CLOUD_PORT);
-		//
-		// 	inet_ntop(AF_INET6, &broker6->sin6_addr.s6_addr,
-		// 		  ipv6_addr, sizeof(ipv6_addr));
-		// 	LOG_DBG("IPv4 Address found %s", log_strdup(ipv6_addr));
-		// 	break;
-		// }
-
-		// LOG_DBG("ai_addrlen = %u should be %u or %u",
-		// 	(unsigned int)addr->ai_addrlen,
-		// 	(unsigned int)sizeof(struct sockaddr_in),
-		// 	(unsigned int)sizeof(struct sockaddr_in6));
-		//
-		// addr = addr->ai_next;
-		// break;
-	// }
-
 	// freeaddrinfo(result);
   printk("Created broker sock: %d\n", sock);
 
@@ -469,38 +629,7 @@ static int client_broker_init(void) //struct coap_client *const client) // TODO 
 	// printk("got to brokerInit\n");
 	// if (err) {
 	// 	return err;
-	// }
 
-  // pass the socket
-	// client.broker			= &broker;
-	// pass the event handler
-	// client->event_handler			= coap_evt_handler;
-
-	// OLD stuff for mqtt client
-	// client->client_id.utf8		= (char *)client_id_buf;
-	// client->client_id.size		= strlen(client_id_buf);
-	// client->password		= NULL;
-	// client->user_name		= NULL;
-	// client->protocol_version	= COAP_VERSION_3_1_1;
-	// client->rx_buf			= rx_buffer;
-	// client->rx_buf_size		= sizeof(rx_buffer);
-	// client->tx_buf			= tx_buffer;
-	// client->tx_buf_size		= sizeof(tx_buffer);
-	// client->transport.type		= COAP_TRANSPORT_NON_SECURE;
-
-// #if defined(CONFIG_COAP_CLOUD_PERSISTENT_SESSIONS)
-// 	client->clean_session		= 0U;
-// #endif
-
-	// static sec_tag_t sec_tag_list[] = { CONFIG_COAP_CLOUD_SEC_TAG };
-	// struct mqtt_sec_config *tls_cfg = &(client->transport).tls.config;
-	//
-	// tls_cfg->peer_verify		= 2;
-	// tls_cfg->cipher_count		= 0;
-	// tls_cfg->cipher_list		= NULL;
-	// tls_cfg->sec_tag_count		= ARRAY_SIZE(sec_tag_list);
-	// tls_cfg->sec_tag_list		= sec_tag_list;
-	// tls_cfg->hostname		= CONFIG_COAP_CLOUD_BROKER_HOST_NAME;
 
 	return err;
 }
@@ -678,6 +807,7 @@ int coap_cloud_disconnect(void)
 	return 0;
 }
 
+// POLLING activated here
 int coap_cloud_connect(struct coap_cloud_config *const config)
 {
 	int err;
@@ -699,12 +829,6 @@ int coap_cloud_connect(struct coap_cloud_config *const config)
 			LOG_ERR("client_broker_init, error: %d", err);
 			return err;
 		}
-    // TODO send a connack / CLOUD_CONNECT_RES_SUCCESS
-		// err = mqtt_connect(&client);
-		// err = coap_connect();
-		// if (err) {
-		// 	LOG_ERR("coap_connect, error: %d", err);
-		// }
 
 		err = connect_error_translate(err);
 
@@ -725,36 +849,9 @@ int coap_cloud_connect(struct coap_cloud_config *const config)
 	return err;
 }
 
-// int mqtt_cloud_subscription_topics_add(
-// 			const struct mqtt_cloud_topic_data *const topic_list,
-// 			size_t list_count)
-// {
-// 	if (list_count == 0) {
-// 		LOG_ERR("Application subscription list is 0");
-// 		return -EMSGSIZE;
-// 	}
-//
-// 	if (list_count != CONFIG_COAP_CLOUD_APP_SUBSCRIPTION_LIST_COUNT) {
-// 		LOG_ERR("Application subscription list count mismatch");
-// 		return -EMSGSIZE;
-// 	}
-//
-// 	for (size_t i = 0; i < list_count; i++) {
-// 		app_topic_data.list[i].topic.utf8 = topic_list[i].str;
-// 		app_topic_data.list[i].topic.size = topic_list[i].len;
-// 		app_topic_data.list[i].qos = COAP_QOS_1_AT_LEAST_ONCE;
-// 	}
-//
-// 	app_topic_data.list_count = list_count;
-//
-// 	return 0;
-// }
-
-
 int coap_cloud_init(const struct coap_cloud_config *const config,
 		 coap_cloud_evt_handler_t event_handler)
 {
-
 	int err;
 
   // token for coap testing, can be removed if not used anywhere anymore
@@ -771,9 +868,8 @@ printk("in coap_cloud_init, CONFIG_CLOUD_API is not defined\n");
 
 // TODO might need this later
 #if defined(CONFIG_COAP_CLOUD_CONNECTION_POLL_THREAD)
-void mqtt_cloud_cloud_poll(void)
+void coap_cloud_cloud_poll(void)
 {
-
 	printk("Started POLLING....\n");
 	int err;
 	struct pollfd fds[1];
@@ -859,7 +955,8 @@ start:
 		if (err == 0) {
 			if (coap_cloud_keepalive_time_left() <
 			    COAP_CLOUD_POLL_TIMEOUT_MS) {
-				c_ping();
+						// todo cant call cping
+				// c_ping();
 			}
 			continue;
 		}
@@ -947,7 +1044,7 @@ reset:
 #endif
 
 K_THREAD_DEFINE(connection_poll_thread, POLL_THREAD_STACK_SIZE,
-		mqtt_cloud_cloud_poll, NULL, NULL, NULL,
+		coap_cloud_cloud_poll, NULL, NULL, NULL,
 		K_LOWEST_APPLICATION_THREAD_PRIO, 0, 0);
 #endif
 
@@ -955,8 +1052,6 @@ K_THREAD_DEFINE(connection_poll_thread, POLL_THREAD_STACK_SIZE,
 static int c_init(const struct cloud_backend *const backend,
 		  cloud_evt_handler_t handler)
 {
-
-  LOG_INF("2 -- in c_init");
 	#if !defined(CONFIG_CLOUD_API)
 		module_evt_handler = event_handler;
 	#endif
@@ -974,19 +1069,11 @@ static int c_ep_subscriptions_add(const struct cloud_backend *const backend,
 				  const struct cloud_endpoint *const list,
 				  size_t list_count)
 {
-	// struct mqtt_cloud_topic_data topic_list[list_count];
-
-	// for (size_t i = 0; i < list_count; i++) {
-	// 	topic_list[i].str = list[i].str;
-	// 	topic_list[i].len = list[i].len;
-	// }
-
-	return 0; // mqtt_cloud_subscription_topics_add(topic_list, list_count);
+	return 0;
 }
 
 static int c_connect(const struct cloud_backend *const backend)
 {
-	LOG_INF("c_connect called (cloud: 1195)");
 	return coap_cloud_connect(backend);
 }
 
@@ -1045,7 +1132,7 @@ static int c_send(const struct cloud_backend *const backend,
 
 	// TODO free payload?
 
-	LOG_INF("err: %d\n", err);
+	// LOG_INF("err: %d\n", err);
 
 	return 0;
 }
@@ -1057,7 +1144,7 @@ static int c_input(const struct cloud_backend *const backend)
 
 /* called periodically to keep connection to broker alive
  * @return 0 if successful, error code otherwies */
-static int c_ping(const struct cloud_backend *const backend)
+static int c_ping()
 {
 	printk("c_ping called\n");
 	return 0;
