@@ -235,20 +235,24 @@ static int process_obs_coap_reply(void)
 	if (!data) {
 		return -ENOMEM;
 	}
-  // MSG_DONTWAIT would be non-blocking, but we want blocking
+
+  // TODO this is just for testing
+	uint8_t test_data[APP_COAP_MAX_MSG_LEN];
+	memset(test_data, "\0", APP_COAP_MAX_MSG_LEN);
+	// ebe134 is yellow(ish)
+	strcpy(&test_data, "{\"appId\":\"LED\",\"data\":{\"color\":\"ebe134\"},\"messageType\":\"CFG_SET\"}");
+
+	struct cloud_event cloud_evt2;
+	cloud_evt2.type = CLOUD_EVT_DATA_RECEIVED;
+	cloud_evt2.data.msg.buf = &test_data;
+	cloud_evt2.data.msg.len = sizeof(test_data);
+	cloud_notify_event(coap_cloud_backend, &cloud_evt2, test_data);
+
+
+	// MSG_DONTWAIT would be non-blocking, but we want blocking
 	// as we need the data to update
 	// need nrf_recv because recv from zephyr doesnt support NRF_MSG_WAITALL
 	LOG_INF("Waiting for LED patch");
-
-	// {"appId":"LED","data":{"color":"#d900ff"},"messageType":"CFG_SET"}
-  // TODO this is just for testing
-	struct cloud_event cloud_evt2 = { CLOUD_EVT_DATA_RECEIVED };
-	memset(data, "\0", APP_COAP_MAX_MSG_LEN);
-	strcpy(&data, "{\"appId\":\"LED\",\"data\":{\"color\":\"#d900ff\"},\"messageType\":\"CFG_SET\"}");
-	cloud_notify_event(coap_cloud_backend, &cloud_evt2, data);
-
-
-
 	rcvd = nrf_recv(poll_sock, data, APP_COAP_MAX_MSG_LEN, NRF_MSG_WAITALL); //, MSG_DONTWAIT);
 	if (rcvd == 0) {
 		ret = -EIO;
@@ -283,7 +287,11 @@ static int process_obs_coap_reply(void)
 
 	LOG_INF("GOT DATA:  %s", &data);
 
-	struct cloud_event cloud_evt = { CLOUD_EVT_DATA_RECEIVED };
+	struct cloud_event cloud_evt = {
+		.type = CLOUD_EVT_DATA_RECEIVED,
+		.data.msg.buf = data,
+		.data.msg.len = sizeof(data)
+	};
 	cloud_notify_event(coap_cloud_backend, &cloud_evt, data);
 
 end:

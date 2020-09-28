@@ -11,13 +11,13 @@
 
 LOG_MODULE_REGISTER(coap_utils, CONFIG_COAP_UTILS_LOG_LEVEL);
 
-#define MAX_COAP_MSG_LEN 256
+#define MAX_COAP_MSG_LEN 512
 #define COAP_VER 1
 #define COAP_TOKEN_LEN 8
 #define COAP_MAX_REPLIES 1
 #define COAP_POOL_SLEEP 500
 #define COAP_OPEN_SOCKET_SLEEP 200
-#define COAP_RECEIVE_STACK_SIZE 500
+#define COAP_RECEIVE_STACK_SIZE 4096
 
 const static int nfds = 1;
 static struct pollfd fds;
