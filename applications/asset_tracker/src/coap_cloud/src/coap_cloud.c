@@ -1,6 +1,7 @@
 #include "coap_cloud.h"
 #include <net/mqtt.h>
 #include <net/socket.h>
+#include <nrf_socket.h>
 #include <net/cloud.h>
 #include <random/rand32.h>
 #include <stdio.h>
@@ -37,6 +38,7 @@ static struct coap_client client;
 // static struct sockaddr_storage broker;
 static struct sockaddr_in broker; // TODO use ipv6 eventually
 static int sock;
+static int poll_sock;
 static u16_t next_token;
 #define MESSAGE_ID next_token
 static u8_t coap_buf[APP_COAP_MAX_MSG_LEN];
@@ -143,9 +145,82 @@ static void coap_cloud_notify_event(const struct coap_cloud_evt *evt)
 
 // Zephyr code ================= start ====================
 
-static int send_simple_coap_request(uint8_t method)
+static int send_obs_reply_ack(uint16_t id, uint8_t *token, uint8_t tkl)
 {
-	uint8_t payload[] = "payload";
+	struct coap_packet request;
+	uint8_t *data;
+	int r;
+
+	data = (uint8_t *)k_malloc(APP_COAP_MAX_MSG_LEN);
+	if (!data) {
+		return -ENOMEM;
+	}
+
+	r = coap_packet_init(&request, data, APP_COAP_MAX_MSG_LEN,
+			     1, COAP_TYPE_ACK, tkl, token, 0, id);
+	if (r < 0) {
+		LOG_ERR("Failed to init CoAP message");
+		goto end;
+	}
+
+	r = send(poll_sock, request.data, request.offset, 0);
+end:
+	k_free(data);
+
+	return r;
+}
+
+static int process_simple_coap_reply(void)
+{
+
+	LOG_DBG("processing simple coap reply");
+	struct coap_packet reply;
+	uint8_t *data;
+	int rcvd;
+	int ret;
+
+	// wait();
+
+	data = (uint8_t *)k_malloc(APP_COAP_MAX_MSG_LEN);
+	if (!data) {
+		return -ENOMEM;
+	}
+
+  // MSG_DONTWAIT, we dont care if no ack received, servers problem for now
+	rcvd = recv(sock, data, APP_COAP_MAX_MSG_LEN, MSG_DONTWAIT);
+	if (rcvd == 0) {
+		ret = -EIO;
+		goto end;
+	}
+
+	if (rcvd < 0) {
+		if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			ret = 0;
+		} else {
+			ret = -errno;
+		}
+
+		goto end;
+	}
+
+	// net_hexdump("Response", data, rcvd);
+
+	ret = coap_packet_parse(&reply, data, rcvd, NULL, 0);
+	if (ret < 0) {
+		LOG_ERR("Invalid data received");
+	}
+
+end:
+	k_free(data);
+
+	return ret;
+}
+
+
+static int send_simple_coap_request(uint8_t method, const struct cloud_msg *const msg)
+{
+	uint8_t payload[strlen(msg->buf)];
+	strcpy(payload, msg->buf);
 	struct coap_packet request;
 	const char * const *p;
 	uint8_t *data;
@@ -174,10 +249,6 @@ static int send_simple_coap_request(uint8_t method)
 	}
 
 	switch (method) {
-	case COAP_METHOD_GET:
-	case COAP_METHOD_DELETE:
-		break;
-
 	case COAP_METHOD_PUT:
 	case COAP_METHOD_POST:
 		r = coap_packet_append_payload_marker(&request);
@@ -199,8 +270,6 @@ static int send_simple_coap_request(uint8_t method)
 		goto end;
 	}
 
-	net_hexdump("Request", request.data, request.offset);
-
 	r = send(sock, request.data, request.offset, 0);
 
 end:
@@ -209,59 +278,21 @@ end:
 	return 0;
 }
 
-static int send_simple_coap_msgs_and_wait_for_reply(void)
+static int send_simple_coap_msgs_and_wait_for_reply(const struct cloud_msg *const msg)
 {
-	uint8_t test_type = 0U;
 	int r;
 
-	while (1) {
-		switch (test_type) {
-		case 0:
-			/* Test CoAP GET method */
-			printk("\nCoAP client GET\n");
-			r = send_simple_coap_request(COAP_METHOD_GET);
-			if (r < 0) {
-				return r;
-			}
+	printk("\nCoAP client PUT\n");
+	r = send_simple_coap_request(COAP_METHOD_PUT, &msg);
+	if (r < 0) {
+		return r;
+	}
 
-			break;
-		case 1:
-			/* Test CoAP PUT method */
-			printk("\nCoAP client PUT\n");
-			r = send_simple_coap_request(COAP_METHOD_PUT);
-			if (r < 0) {
-				return r;
-			}
-
-			break;
-		case 2:
-			/* Test CoAP POST method*/
-			printk("\nCoAP client POST\n");
-			r = send_simple_coap_request(COAP_METHOD_POST);
-			if (r < 0) {
-				return r;
-			}
-
-			break;
-		case 3:
-			/* Test CoAP DELETE method*/
-			printk("\nCoAP client DELETE\n");
-			r = send_simple_coap_request(COAP_METHOD_DELETE);
-			if (r < 0) {
-				return r;
-			}
-
-			break;
-		default:
-			return 0;
-		}
-
-		r = process_simple_coap_reply();
-		if (r < 0) {
-			return r;
-		}
-
-		test_type++;
+	r = process_simple_coap_reply();
+	if (r < 0) {
+		// TODO cloud error message
+		LOG_DBG("reply was parsed, err %d", r);
+		return r;
 	}
 
 	return 0;
@@ -302,9 +333,8 @@ static int send_obs_coap_request(void)
 		}
 	}
 
-	net_hexdump("Request", request.data, request.offset);
 
-	r = send(sock, request.data, request.offset, 0);
+	r = send(poll_sock, request.data, request.offset, 0);
 
 end:
 	k_free(data);
@@ -323,14 +353,16 @@ static int process_obs_coap_reply(void)
 	int rcvd;
 	int ret;
 
-	wait();
+	// wait();
 
 	data = (uint8_t *)k_malloc(APP_COAP_MAX_MSG_LEN);
 	if (!data) {
 		return -ENOMEM;
 	}
-
-	rcvd = recv(sock, data, APP_COAP_MAX_MSG_LEN, MSG_DONTWAIT);
+  // MSG_DONTWAIT would be non-blocking, but we want blocking
+	// as we need the data to update
+	// need nrf_recv because recv from zephyr doesnt support NRF_MSG_WAITALL
+	rcvd = nrf_recv(poll_sock, data, APP_COAP_MAX_MSG_LEN, NRF_MSG_WAITALL); //, MSG_DONTWAIT);
 	if (rcvd == 0) {
 		ret = -EIO;
 		goto end;
@@ -346,7 +378,6 @@ static int process_obs_coap_reply(void)
 		goto end;
 	}
 
-	net_hexdump("Response", data, rcvd);
 
 	ret = coap_packet_parse(&reply, data, rcvd, NULL, 0);
 	if (ret < 0) {
@@ -592,7 +623,7 @@ static int broker_init(void) {
 
 		err = connect(sock, (struct sockaddr *)&broker, sizeof(struct sockaddr_in));
 	  if (err < 0) {
-	    printk("Connect failed : %d\n", errno);
+	    LOG_ERR("Connect failed : %d\n", errno);
 	    return -errno;
 	  }
 
@@ -600,10 +631,24 @@ static int broker_init(void) {
 	// freeaddrinfo(result);
   printk("Created broker sock: %d\n", sock);
 
-
   // init_coap_client
 	client.sock = sock;
 	client.broker = &broker;
+
+
+	// create second socket for polling thread
+	poll_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	 if (poll_sock < 0) {
+	   LOG_ERR("Failed to create CoAP socket: %d.\n", errno);
+	   return -errno;
+	 }
+
+	 err = connect(poll_sock, (struct sockaddr *)&broker, sizeof(struct sockaddr_in));
+	 if (err < 0) {
+	   LOG_ERR("Connect for poll sock failed : %d\n", errno);
+	   return -errno;
+	 }
+	 LOG_DBG("poll sock initialized");
 
 
 	// should send ready event
@@ -634,17 +679,94 @@ static int client_broker_init(void) //struct coap_client *const client) // TODO 
 	return err;
 }
 
+//getback
+// extern void my_entry_point(void *, void *, void *);
+
+
+#ifdef CONFIG_BOARD_QEMU_X86
+#define POLL_THREAD_STACK_SIZE 4096
+#else
+#define POLL_THREAD_STACK_SIZE 2560
+#endif
+
+// define thread stack for observe thread
+// K_THREAD_STACK_DEFINE(my_stack_area, POLL_THREAD_STACK_SIZE);
+
+
+// K_THREAD_DEFINE(connection_poll_thread, POLL_THREAD_STACK_SIZE,
+// 		observe, NULL, NULL, NULL,
+// 		K_LOWEST_APPLICATION_THREAD_PRIO, 0, 0);
+
+static void observe(void){
+
+	LOG_DBG("Started observation thread..");
+
+	int r;
+
+	/* wait for the thread semaphore being freed by the connection poll start */
+	k_sem_take(&connection_poll_sem, K_FOREVER);
+
+	/* then start observing */
+
+  /* keep in loop */
+	while (1) {
+
+		if(atomic_get(&disconnect_requested)){
+			LOG_DBG("expected disconnect event");
+			return;
+		}
+
+		/* Test CoAP OBS GET method */
+		printk("\nCoAP client OBS GET\n");
+		r = send_obs_coap_request();
+		if (r < 0) {
+			// todo cloud error event
+			return r;
+		}
+
+		r = process_obs_coap_reply();
+		if (r < 0) {
+			// todo cloud error event
+			return r;
+		}
+
+		// TODO proper unregister
+		/* Unregister if stopped */
+		// if (!atomic_get(&connection_poll_active)) {
+		// 	return send_obs_reset_coap_request();
+		// }
+	}
+
+	return 0;
+}
+
+K_THREAD_DEFINE(connection_poll_thread, POLL_THREAD_STACK_SIZE,
+		observe, NULL, NULL, NULL,
+		K_LOWEST_APPLICATION_THREAD_PRIO, 0, 0);
+
 static int connection_poll_start(void)
 {
 	// if (atomic_get(&connection_poll_active)) {
 	// 	LOG_DBG("Connection poll in progress");
 	// 	return -EINPROGRESS;
 	// }
-
-	printk("inside connection_poll_start");
-
+	//
+	// printk("inside connection_poll_start");
+	//
 	atomic_set(&disconnect_requested, 0);
 	k_sem_give(&connection_poll_sem);
+
+	// TODO set thread to start here
+
+
+	// struct k_thread my_thread_data;
+	// k_tid_t my_tid = k_thread_create(&my_thread_data, my_stack_area,
+	// 	K_THREAD_STACK_SIZEOF(my_stack_area),
+	// 	observe,
+	// 	NULL, NULL, NULL,
+	// 	K_LOWEST_APPLICATION_THREAD_PRIO, 0, K_NO_WAIT);
+	//
+	// printk("finished defining observe thread\n");
 
 	return 0;
 }
@@ -812,16 +934,7 @@ int coap_cloud_connect(struct coap_cloud_config *const config)
 {
 	int err;
 
-	// printk("now in coap cloud connect\n");
-
-	if (IS_ENABLED(CONFIG_COAP_CLOUD_CONNECTION_POLL_THREAD)) {
-    // if(1){
-		err = connection_poll_start();
-		printk("got to connection_poll_start\n");
-	} else {
-		// printk("landed in else of poll_start\n");
 		atomic_set(&disconnect_requested, 0);
-		// printk("now with client_broker_init start\n");
 		LOG_INF("calling client_broker_init (cloud: 910)");
 		err = client_broker_init();
 
@@ -832,12 +945,16 @@ int coap_cloud_connect(struct coap_cloud_config *const config)
 
 		err = connect_error_translate(err);
 
+
+		printk("calling connection_poll_start\n");
+		err = connection_poll_start();
+
 #if !defined(CONFIG_CLOUD_API)
                 // no need for tls TODO maybe should add socket here..
 		config->socket = client.transport.tls.sock;
 		// config->socket = sock;
 #endif
-	}
+	// }
 
   printk("error in coap_cloud_connect: %d\n", err);
 
@@ -865,6 +982,41 @@ printk("in coap_cloud_init, CONFIG_CLOUD_API is not defined\n");
 
 	return 0; //err
 }
+
+// K_THREAD_DEFINE(connection_poll_thread, POLL_THREAD_STACK_SIZE,
+// 		observe, NULL, NULL, NULL,
+// 		K_LOWEST_APPLICATION_THREAD_PRIO, 0, 0);
+
+// extern void observe(void){
+//
+// 	LOG_DBG("Started observation thread..");
+//
+// 	int r;
+//   /* keep in loop */
+// 	while (1) {
+// 		/* Test CoAP OBS GET method */
+// 		printk("\nCoAP client OBS GET\n");
+// 		r = send_obs_coap_request();
+// 		if (r < 0) {
+// 			// todo cloud error event
+// 			return r;
+// 		}
+//
+// 		r = process_obs_coap_reply();
+// 		if (r < 0) {
+// 			// todo cloud error event
+// 			return r;
+// 		}
+//
+// 		// TODO proper unregister
+// 		/* Unregister if stopped */
+// 		// if (!atomic_get(&connection_poll_active)) {
+// 		// 	return send_obs_reset_coap_request();
+// 		// }
+// 	}
+//
+// 	return 0;
+// }
 
 // TODO might need this later
 #if defined(CONFIG_COAP_CLOUD_CONNECTION_POLL_THREAD)
@@ -1037,15 +1189,6 @@ reset:
 	goto start;
 }
 
-#ifdef CONFIG_BOARD_QEMU_X86
-#define POLL_THREAD_STACK_SIZE 4096
-#else
-#define POLL_THREAD_STACK_SIZE 2560
-#endif
-
-K_THREAD_DEFINE(connection_poll_thread, POLL_THREAD_STACK_SIZE,
-		coap_cloud_cloud_poll, NULL, NULL, NULL,
-		K_LOWEST_APPLICATION_THREAD_PRIO, 0, 0);
 #endif
 
 #if defined(CONFIG_CLOUD_API)
@@ -1089,52 +1232,57 @@ static int c_send(const struct cloud_backend *const backend,
 
 	int err;
 
+	err = send_simple_coap_msgs_and_wait_for_reply(&msg);
+	return err;
+
+  /* old coap message code */
+
   // path to resource on server
-	char *path = "testing";
-	struct coap_packet request;
-	uint8_t data[100];
-
-  /* copy asset_tracker msg to coap data buffer */
-	uint8_t payload[strlen(msg->buf)];
-  strcpy(payload, msg->buf);
-
-  /* initialize coap packet */
-	err = coap_packet_init(&request, data, sizeof(data),
-								 1, COAP_TYPE_NON_CON, 8, coap_next_token(),
-								 COAP_METHOD_PUT, coap_next_id());
-	if (err < 0) {
-		LOG_ERR("Failed to initialize coap packet, %d\n", errno);
-		return -errno;
- 	}
-
-  /* append options */
-	coap_packet_append_option(&request, COAP_OPTION_URI_PATH,
-													path, strlen(path));
-	if (err < 0) {
-		LOG_ERR("Failed to append coap packet options, %d\n", errno);
-		return -errno;
-	}
-
-	/* Append Payload marker if going to add payload */
-	coap_packet_append_payload_marker(&request);
-
-	/* Append payload (data received from asset_tracker) */
-	coap_packet_append_payload(&request, (uint8_t *)payload,
-													 sizeof(payload) - 1);
-
-	err = send(sock, request.data, request.offset, 0);
-	if (err < 0) {
-		LOG_ERR("Failed to send CoAP request, %d\n", errno);
-		return -errno;
-	}
-
-	LOG_INF("request content: %s\n", payload);
+	// char *path = "testing";
+	// struct coap_packet request;
+	// uint8_t data[100];
+	//
+  // /* copy asset_tracker msg to coap data buffer */
+	// uint8_t payload[strlen(msg->buf)];
+  // strcpy(payload, msg->buf);
+	//
+  // /* initialize coap packet */
+	// err = coap_packet_init(&request, data, sizeof(data),
+	// 							 1, COAP_TYPE_NON_CON, 8, coap_next_token(),
+	// 							 COAP_METHOD_PUT, coap_next_id());
+	// if (err < 0) {
+	// 	LOG_ERR("Failed to initialize coap packet, %d\n", errno);
+	// 	return -errno;
+ 	// }
+	//
+  // /* append options */
+	// coap_packet_append_option(&request, COAP_OPTION_URI_PATH,
+	// 												path, strlen(path));
+	// if (err < 0) {
+	// 	LOG_ERR("Failed to append coap packet options, %d\n", errno);
+	// 	return -errno;
+	// }
+	//
+	// /* Append Payload marker if going to add payload */
+	// coap_packet_append_payload_marker(&request);
+	//
+	// /* Append payload (data received from asset_tracker) */
+	// coap_packet_append_payload(&request, (uint8_t *)payload,
+	// 												 sizeof(payload) - 1);
+	//
+	// err = send(sock, request.data, request.offset, 0);
+	// if (err < 0) {
+	// 	LOG_ERR("Failed to send CoAP request, %d\n", errno);
+	// 	return -errno;
+	// }
+	//
+	// LOG_INF("request content: %s\n", payload);
 
 	// TODO free payload?
 
 	// LOG_INF("err: %d\n", err);
 
-	return 0;
+	// return 0;
 }
 
 static int c_input(const struct cloud_backend *const backend)

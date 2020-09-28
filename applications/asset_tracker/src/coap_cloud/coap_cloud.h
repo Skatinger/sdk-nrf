@@ -171,6 +171,10 @@ struct coap_cloud_config {
  *  @return 0 If successful.
  *            Otherwise, a (negative) error code is returned.
  */
+
+ // static void observe(void);
+
+
 int coap_cloud_init(const struct coap_cloud_config *const config,
                     coap_cloud_evt_handler_t event_handler);
 
