@@ -190,7 +190,7 @@ int coap_cloud_init(const struct coap_cloud_config *const config,
  *  @return 0 If successful.
  *            Otherwise, a (negative) error code is returned.
  */
-int coap_cloud_connect(struct coap_cloud_config *const config);
+int coap_cloud_connect(void);
 
 /** @brief Disconnect from the AWS IoT broker.
  *
