@@ -145,8 +145,10 @@ static int send_simple_coap_request(const struct cloud_msg *const msg)
 		goto end;
 	}
 
+  LOG_INF("Appending payload: %s", payload);
+
 	r = coap_packet_append_payload(&request, (uint8_t *)payload,
-				       sizeof(payload) - 1);
+				       sizeof(payload));
 	if (r < 0) {
 		LOG_ERR("Not able to append payload");
 		goto end;
@@ -163,7 +165,7 @@ end:
 static int send_simple_coap_msgs_and_wait_for_reply(const struct cloud_msg *const msg)
 {
 	int err;
-	err = send_simple_coap_request(&msg);
+	err = send_simple_coap_request(msg);
 	if (err < 0) {
 		LOG_INF("got error upon sending: %d", err);
 		return err;
@@ -431,6 +433,8 @@ static void observe(void){
 	/* wait for the thread semaphore being freed by the connection poll start */
 	k_sem_take(&connection_poll_sem, K_FOREVER);
 
+	LOG_INF("Was able to start the polling");
+
 	/* then start observing */
 	r = send_obs_coap_request();
 	if (r < 0) {
@@ -555,7 +559,7 @@ int coap_cloud_connect(void)
 			return err;
 		}
 		err = connect_error_translate(err);
-		err = connection_poll_start();
+		// err = connection_poll_start(); // TODO dont start observe for now
 	return err;
 }
 
@@ -598,7 +602,7 @@ static int c_send(const struct cloud_backend *const backend,
 {
 	LOG_INF("SENDING SENSOR DATA. MESSAGE: %s\n", msg->buf);
 	int err;
-	err = send_simple_coap_msgs_and_wait_for_reply(&msg);
+	err = send_simple_coap_msgs_and_wait_for_reply(msg);
 	return err;
 }
 
