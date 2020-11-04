@@ -1367,7 +1367,7 @@ void cloud_event_handler(const struct cloud_backend *const backend,
 		int err;
 
 		LOG_INF("CLOUD_EVT_DATA_RECEIVED");
-		printk("DATA IS: %s", evt->data.msg.buf);
+		LOG_INF("DATA IS: %s", evt->data.msg.buf);
 		err = cloud_decode_command(evt->data.msg.buf);
 		if (err == 0) {
 			/* Cloud decoder has handled the data */

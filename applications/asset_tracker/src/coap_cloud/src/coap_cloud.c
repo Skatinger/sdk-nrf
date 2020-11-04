@@ -8,6 +8,7 @@
 #include <net/coap_utils.h>
 #include <net/coap.h>
 #include <logging/log.h>
+// #include <include/data/json.h>
 
 LOG_MODULE_REGISTER(coap_cloud, CONFIG_COAP_CLOUD_LOG_LEVEL);
 
@@ -17,7 +18,7 @@ LOG_MODULE_REGISTER(coap_cloud, CONFIG_COAP_CLOUD_LOG_LEVEL);
 #define APP_COAP_VERSION 1
 
 // registered resources
-static const char * const obs_path[] = { "obs", NULL };
+static const char * const obs_path[] = { "led", NULL };
 static const char * const test_path[] = { "testing", NULL };
 
 // TODO add to config files
@@ -58,7 +59,7 @@ static int send_obs_reply_ack(uint16_t id, uint8_t *token, uint8_t tkl)
 		LOG_ERR("Failed to init CoAP message");
 		goto end;
 	}
-
+  LOG_INF("===== SENDING msg in 62");
 	r = send(poll_sock, request.data, request.offset, 0);
 end:
 	k_free(data);
@@ -79,7 +80,8 @@ static int process_simple_coap_reply(void)
 		return -ENOMEM;
 	}
 
-  // MSG_DONTWAIT, we dont care if no ack received, servers problem for now
+  // MSG_DONTWAIT, we dont care if no ack received,
+	// maybe has to be handled sometime to save buffer space on the socket?
 	rcvd = recv(sock, data, APP_COAP_MAX_MSG_LEN, MSG_DONTWAIT);
 	if (rcvd == 0) {
 		ret = -EIO;
@@ -153,7 +155,7 @@ static int send_simple_coap_request(const struct cloud_msg *const msg)
 		LOG_ERR("Not able to append payload");
 		goto end;
 	}
-
+  LOG_INF("===== SENDING msg in 159");
 	r = send(sock, request.data, request.offset, 0);
 
 end:
@@ -193,7 +195,7 @@ static int send_obs_coap_request(void)
 	}
 
 	r = coap_packet_init(&request, data, APP_COAP_MAX_MSG_LEN,
-			     1, COAP_TYPE_CON, 8, coap_next_token(),
+			     1, COAP_TYPE_CON, 8, coap_next_token(), // TODO changed to non_con from  CON
 			     COAP_METHOD_GET, coap_next_id());
 	if (r < 0) {
 		LOG_ERR("Failed to init CoAP message");
@@ -214,6 +216,7 @@ static int send_obs_coap_request(void)
 			goto end;
 		}
 	}
+	LOG_INF("===== SENDING msg in 219");
 	r = send(poll_sock, request.data, request.offset, 0);
 
 end:
@@ -224,12 +227,17 @@ end:
 
 static int process_obs_coap_reply(void)
 {
+
+	LOG_INF("processing OBS reply");
 	struct coap_packet reply;
+	int err;
 	uint16_t id;
 	uint8_t token[8];
 	uint8_t *data;
 	uint8_t type;
-	uint8_t tkl;
+	uint16_t payload_len;
+	const uint8_t *payload;
+	uint8_t token_len;
 	int rcvd;
 	int ret;
 
@@ -238,26 +246,23 @@ static int process_obs_coap_reply(void)
 		return -ENOMEM;
 	}
 
-  // TODO this is just for testing
-	uint8_t test_data[APP_COAP_MAX_MSG_LEN];
-	memset(test_data, "\0", APP_COAP_MAX_MSG_LEN);
-	// ebe134 is yellow(ish)
-	strcpy(&test_data, "{\"appId\":\"LED\",\"data\":{\"color\":\"ebe134\"},\"messageType\":\"CFG_SET\"}");
-
-	struct cloud_event cloud_evt2;
-	cloud_evt2.type = CLOUD_EVT_DATA_RECEIVED;
-	cloud_evt2.data.msg.buf = &test_data;
-	cloud_evt2.data.msg.len = sizeof(test_data);
-	cloud_notify_event(coap_cloud_backend, &cloud_evt2, test_data);
-
+	LOG_INF("Waiting for LED patch");
 
 	// MSG_DONTWAIT would be non-blocking, but we want blocking
-	// as we need the data to update
-	// need nrf_recv because recv from zephyr doesnt support NRF_MSG_WAITALL
-	LOG_INF("Waiting for LED patch");
-	rcvd = nrf_recv(poll_sock, data, APP_COAP_MAX_MSG_LEN, NRF_MSG_WAITALL); //, MSG_DONTWAIT);
+	// as we need the data to update. nrf_recv should support this, but will only
+	// work with nrf_socket(), but this did not properly work.
+	// recv from zephyr does not support MSG_WAITALL, so we loop until we can read from socket
+	// rcvd = nrf_recv(poll_sock, data, APP_COAP_MAX_MSG_LEN, NRF_MSG_WAITALL);
+  rcvd = -1;
+	// while(rcvd < 0){
+	rcvd = recv(poll_sock, data, APP_COAP_MAX_MSG_LEN, 0); //MSG_DONTWAIT); TODO changed this to 0 from MSG_DONTWAIT
+	// }
+
+	LOG_INF("got after recv with msg length: %d", rcvd);
+
 	if (rcvd == 0) {
 		ret = -EIO;
+		LOG_INF("something went wrong, skipping observe answer parsing");
 		goto end;
 	}
 
@@ -267,7 +272,7 @@ static int process_obs_coap_reply(void)
 		} else {
 			ret = -errno;
 		}
-
+		LOG_INF("something went wrong, skipping observe answer parsing");
 		goto end;
 	}
 
@@ -277,24 +282,71 @@ static int process_obs_coap_reply(void)
 		goto end;
 	}
 
-	tkl = coap_header_get_token(&reply, (uint8_t *)token);
-	id = coap_header_get_id(&reply);
+	LOG_INF("also after coap_packet_parse");
 
+	// tkl = coap_header_get_token(&reply, (uint8_t *)token);
+	// token_len = coap_header_get_token(&reply, token);
+	token_len = coap_header_get_token(&reply, (uint8_t *)token);
+
+	// if ((token_len != sizeof(next_token)) &&
+	//     (memcmp(&next_token, token, sizeof(next_token)) != 0)) {
+	// 	printk("Invalid token received: 0x%02x%02x\n",
+	// 	       token[1], token[0]);
+	// 	// return 0;
+	// }
+
+
+	LOG_INF("parsed header_token");
+	id = coap_header_get_id(&reply);
+	LOG_INF("parsed coap_header_id");
 	type = coap_header_get_type(&reply);
+	LOG_INF("parsed coap_header_type");
+
+
+	// if(token_len < 1){
+		// LOG_INF("token was short");
+	// }
+	LOG_INF("ID: %d", id);
+	LOG_INF("TYpe: %d", type);
+	LOG_INF("token: %s", token);
+
+	// send back ACK if received type con
 	if (type == COAP_TYPE_ACK) {
+		LOG_INF("received ACK");
 		ret = 0;
+		// in case of udpate, confirm update received from server
 	} else if (type == COAP_TYPE_CON) {
-		ret = send_obs_reply_ack(id, token, tkl);
+		LOG_INF("recieved CON");
+		ret = send_obs_reply_ack(id, token, token_len);
+	} else {
+		// probably a RST, e.g. type 3
+		LOG_INF("ERROR, received RST");
+		ret = 0;
+	  return ret;
 	}
 
-	LOG_INF("GOT DATA:  %s", &data);
+
+
+	payload = coap_packet_get_payload(&reply, &payload_len);
+
+
+
+	LOG_INF("GOT payload:  %s", payload);
+
+	// err = json_escape(payload, sizeof(payload), sizeof(payload));
+  // if(err < 0){
+	// 	LOG_INF("could not parse json");
+	// }
+	// LOG_INF("parsed payload: %s", payload);
+
+	// TODO replace test_data with payload.
 
 	struct cloud_event cloud_evt = {
 		.type = CLOUD_EVT_DATA_RECEIVED,
-		.data.msg.buf = data,
-		.data.msg.len = sizeof(data)
+		.data.msg.buf = payload, //&payload,
+		.data.msg.len = payload_len //payload
 	};
-	cloud_notify_event(coap_cloud_backend, &cloud_evt, data);
+	cloud_notify_event(coap_cloud_backend, &cloud_evt, payload);
 
 end:
 	k_free(data);
@@ -316,7 +368,7 @@ static int send_obs_reset_coap_request(void)
 	}
 
 	r = coap_packet_init(&request, data, APP_COAP_MAX_MSG_LEN,
-			     1, COAP_TYPE_RESET, 8, coap_next_token(),
+			     1, COAP_TYPE_CON, 8, coap_next_token(), // TODO changing from COAP_TYPE_CON to non confirmable
 			     0, coap_next_id());
 	if (r < 0) {
 		LOG_ERR("Failed to init CoAP message");
@@ -380,6 +432,8 @@ static int broker_init(void) {
 	   return -errno;
 	 }
 
+    // this would probably not be necessary, but ensures the endpoint is available
+		// before the application starts sending any data
 		err = connect(sock, (struct sockaddr *)&broker, sizeof(struct sockaddr_in));
 	  if (err < 0) {
 	    LOG_ERR("Connect failed : %d", errno);
@@ -394,6 +448,7 @@ static int broker_init(void) {
 
 
 	// create second socket for polling thread
+	// poll_sock = nrf_socket(NRF_AF_INET, NRF_SOCK_DGRAM, NRF_IPPROTO_UDP);
 	poll_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	 if (poll_sock < 0) {
 	   LOG_ERR("Failed to create CoAP socket: %d.", errno);
@@ -443,7 +498,7 @@ static void observe(void){
 	}
 
 	while (1) {
-
+		LOG_INF("started while");
 		if(atomic_get(&disconnect_requested)){
 			LOG_INF("expected disconnect event");
 			return;
@@ -464,6 +519,7 @@ static void observe(void){
 			k_sem_give(&connection_poll_sem);
 			(void)nrf_close(poll_sock);
 		}
+		LOG_INF("got to end of while");
 	}
 	return 0;
 }
@@ -559,7 +615,7 @@ int coap_cloud_connect(void)
 			return err;
 		}
 		err = connect_error_translate(err);
-		// err = connection_poll_start(); // TODO dont start observe for now
+		err = connection_poll_start();
 	return err;
 }
 
@@ -600,10 +656,11 @@ static int c_disconnect(const struct cloud_backend *const backend)
 static int c_send(const struct cloud_backend *const backend,
 		  const struct cloud_msg *const msg)
 {
-	LOG_INF("SENDING SENSOR DATA. MESSAGE: %s\n", msg->buf);
+	// LOG_INF("SENDING SENSOR DATA. MESSAGE: %s\n", msg->buf);
+	// TODO temporary disabled to test observe
 	int err;
-	err = send_simple_coap_msgs_and_wait_for_reply(msg);
-	return err;
+	// err = send_simple_coap_msgs_and_wait_for_reply(msg);
+	return 0; //err;
 }
 
 /* called periodically to keep connection to broker alive
