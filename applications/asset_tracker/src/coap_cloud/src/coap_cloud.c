@@ -8,7 +8,6 @@
 #include <net/coap_utils.h>
 #include <net/coap.h>
 #include <logging/log.h>
-// #include <include/data/json.h>
 
 LOG_MODULE_REGISTER(coap_cloud, CONFIG_COAP_CLOUD_LOG_LEVEL);
 
@@ -59,7 +58,6 @@ static int send_obs_reply_ack(uint16_t id, uint8_t *token, uint8_t tkl)
 		LOG_ERR("Failed to init CoAP message");
 		goto end;
 	}
-  LOG_INF("===== SENDING msg in 62");
 	r = send(poll_sock, request.data, request.offset, 0);
 end:
 	k_free(data);
@@ -322,7 +320,7 @@ static int process_obs_coap_reply(void)
 		// probably a RST, e.g. type 3
 		LOG_INF("ERROR, received RST");
 		ret = 0;
-	  return ret;
+	  // return ret;
 	}
 
 
@@ -498,28 +496,27 @@ static void observe(void){
 	}
 
 	while (1) {
-		LOG_INF("started while");
 		if(atomic_get(&disconnect_requested)){
 			LOG_INF("expected disconnect event");
 			return;
 		}
 
 		r = process_obs_coap_reply();
+		LOG_INF("RESULT OF process_obs_coap_reply: %d", r);
 		if (r < 0) {
 			// todo cloud error event
 			return r;
 		}
 
 		/* Unregister if stopped, and close socket afterwards */
-		if (!atomic_get(&connection_poll_active)) {
-			r = send_obs_reset_coap_request();
-			if(r < 0){
-				LOG_ERR("Failed to reset observe. Stopping listener anyway.");
-			}
-			k_sem_give(&connection_poll_sem);
-			(void)nrf_close(poll_sock);
-		}
-		LOG_INF("got to end of while");
+		// if (!atomic_get(&connection_poll_active)) {
+		// 	r = send_obs_reset_coap_request();
+		// 	if(r < 0){
+		// 		LOG_ERR("Failed to reset observe. Stopping listener anyway.");
+		// 	}
+		// 	k_sem_give(&connection_poll_sem);
+		// 	(void)nrf_close(poll_sock);
+		// }
 	}
 	return 0;
 }
