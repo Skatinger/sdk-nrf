@@ -120,9 +120,6 @@ end:
 /* used to send a simple coap PUT request to the broker (server) */
 static int send_simple_coap_request(const struct cloud_msg *const msg)
 {
-
-
-	LOG_INF("in send_simple_coap_request --------------------------");
 	uint8_t payload[strlen(msg->buf)];
 	strcpy(payload, msg->buf);
 	struct coap_packet request;
@@ -131,166 +128,68 @@ static int send_simple_coap_request(const struct cloud_msg *const msg)
 	int r;
 	char *path = "";
 
-  /* JSON testing */
-  LOG_INF("before json stuff");
-
-  // const cJSON *jdata = NULL;
+  /* parse json */
 	const cJSON *appId = NULL;
-
 	cJSON *json_packet =cJSON_Parse(msg->buf);
-
 	if (json_packet == NULL) {
-        const char *error_ptr = cJSON_GetErrorPtr();
-        if (error_ptr != NULL)
-        {
-            fprintf(stderr, "Error before: %s\n", error_ptr);
-        }
-				LOG_INF("shit");
+    const char *error_ptr = cJSON_GetErrorPtr();
+  	if (error_ptr != NULL) {
+		  LOG_ERR("Error in json parsing: %s", error_ptr);
+    }
+		LOG_INF("json packet not found");
+		cJSON_Delete(json_packet);
+		return 0;
   }
 
 	appId = cJSON_GetObjectItemCaseSensitive(json_packet, "appId");
-	if (cJSON_IsString(appId) && (appId->valuestring != NULL)) {
-    LOG_INF("Checking monitor \"%s\"\n", appId->valuestring);
-  } else {
+	if (!cJSON_IsString(appId) || (appId->valuestring == NULL)) {
 		LOG_INF("can not use this payload: %s", payload);
 		cJSON_Delete(json_packet);
 		return 0;
 	}
+	// parse data points
+	cJSON *data_value = cJSON_GetObjectItemCaseSensitive(json_packet, "data");
+  float value_to_send;
 
-	LOG_INF("one point");
-
-  cJSON *data_value = NULL;
-
-	LOG_INF("twoo point");
-
-
-	data_value = cJSON_GetObjectItemCaseSensitive(json_packet, "data");
-
-	LOG_INF("three point");
-	LOG_INF("payload: %s", payload);
-
-
-	// char *string_val = value->valuestring;
-  // float value_to_send = atof(value->valuestring);
-	// LOG_INF("VALUE IS: %f", );
-	// float value_to_send = atof(data_value->valuestring);
-	float value_to_send;
-
-	LOG_INF("four point");
-
-  // TODO air_press
-  if(!strcmp("FLIP", appId->valuestring)){
-		LOG_INF("ok, got FLIP");
-		// path = "flip";
-		cJSON_Delete(json_packet);
-		return 0;
-	} else if(!strcmp("HUMID", appId->valuestring)){
-		LOG_INF("ok, got HUMID");
+  // only send if humid, temp or air_press
+	if(!strcmp("HUMID", appId->valuestring)){
     path = "humid";
-		value_to_send = atof(data_value->valuestring);
   } else if(!strcmp("TEMP", appId->valuestring)){
-		LOG_INF("ok, got TEMP");
     path = "temp";
-		value_to_send = atof(data_value->valuestring);
-	} else if(!strcmp("BUTTON", appId->valuestring)){
-    path = "button";
-		cJSON_Delete(json_packet);
-		return 0;
+	} else if(!strcmp("AIR_PRESS", appId->valuestring)){
+		LOG_INF("ok, got TEMP");
+    path = "air_press";
+	// } else if(!strcmp("BUTTON", appId->valuestring)){
+  //   path = "button";
 	} else {
-		LOG_INF("ok, got to ELSE");
 		// dont need this data, skip
 		cJSON_Delete(json_packet);
 		return 0;
 	}
+
+	value_to_send = atof(data_value->valuestring);
   cJSON_Delete(json_packet);
-	LOG_INF("sending val:");
 	LOG_INF("GOT value to send: %f", value_to_send);
 
-
-
-
-
-	/* testing ----*/
-
+  /* encoding payload to cbor */
 	int err;
-
 	struct cbor_buf_writer buf_writer;
-	/*
-	struct cbor_buf_reader {
-    struct cbor_decoder_reader r; // this will be used in cbor_parser_init
-    const uint8_t *buffer;
-  };
-  */
 	struct cbor_buf_reader buf_reader;
-	uint8_t writeBuf[16];
-	uint8_t readBuf[16];
-	int valueToEncode = 4;
+
+	uint8_t encodedPayload[16];
 
   CborParser parser;
 	CborValue value;
 	int result;
 	CborEncoder encoder;
 
-	/* encode */
-  /*
-			void
-		cbor_buf_writer_init(struct cbor_buf_writer *cb, uint8_t *buffer, size_t size)
-		{
-		    cb->ptr = buffer;
-		    cb->end = buffer + size;
-		    cb->enc.bytes_written = 0;
-		    cb->enc.write = cbor_buf_writer;
-		}*/
-	cbor_buf_writer_init(&buf_writer, writeBuf, sizeof(writeBuf));
-
-	/**
- * Initializes a CborEncoder structure \a encoder by pointing it to buffer \a
- * buffer of size \a size. The \a flags field is currently unused and must be
- * zero.
- */
+	cbor_buf_writer_init(&buf_writer, encodedPayload, sizeof(encodedPayload));
 	cbor_encoder_init(&encoder, &buf_writer.enc, 0);
-
-	if(cbor_encode_int(&encoder, valueToEncode) != CborNoError){
-		LOG_INF("error encoding int");
+	if(cbor_encode_float(&encoder, value_to_send) != CborNoError){
+		LOG_ERR("error encoding int");
 	}
 
-	/* decoding */
-
-	// // init a reader for the buffer to pass to the parser
-	// cbor_buf_reader_init(&buf_reader,writeBuf,sizeof(writeBuf));
- //
- //
-	// /**
- // * Initializes the CBOR parser for parsing \a size bytes beginning at \a
- // * buffer. Parsing will use flags set in \a flags. The iterator to the first
- // * element is returned in \a it.
- // *
- // * The \a parser structure needs to remain valid throughout the decoding
- // * process. It is not thread-safe to share one CborParser among multiple
- // * threads iterating at the same time, but the object can be copied so multiple
- // * threads can iterate.
- // */
-	// /* CborError cbor_parser_init(struct cbor_decoder_reader *d, int flags,
- //                                CborParser *parser, CborValue *it)*/
-	// // buf_reader is cbor_buf_reader and has attribute r
-	// if (cbor_parser_init(&buf_reader.r, 0, &parser, &value) != CborNoError){
-	// 	LOG_INF("failed initialzing parser");
-	// }
- //
-	// if(cbor_value_get_int(&value, &result) != CborNoError){
-	// 	LOG_INF("error getting integer");
-	// }
- //
-	// LOG_INF("it worked. integer is: %d", result);
-	// LOG_INF("striiiing: %s", stringToEncode);
-  // LOG_INF("striiiing encoded: %s", writeBuf);
-
-
-
-
-
-	/* ------- end of testing --- */
-
+  /* build coap message */
 	data = (uint8_t *)k_malloc(APP_COAP_MAX_MSG_LEN);
 	if (!data) {
 		LOG_ERR("couldn't malloc data");
@@ -305,10 +204,8 @@ static int send_simple_coap_request(const struct cloud_msg *const msg)
 		goto end;
 	}
 
-  char *route = "testing";
-	route = "temp";
 	r = coap_packet_append_option(&request, COAP_OPTION_URI_PATH,
-					      route, strlen(route));
+					      path, strlen(path));
 		if (r < 0) {
 			LOG_ERR("Unable add option to request");
 			goto end;
@@ -321,18 +218,15 @@ static int send_simple_coap_request(const struct cloud_msg *const msg)
 	}
 
   LOG_INF("Appending payload: %s", payload);
-	// fwrite(writeBuf, 1, sizeof(writeBuf), stdout);
   // changing to payload buffer which is encoded
-	r = coap_packet_append_payload(&request, (uint8_t *)writeBuf,
-				       sizeof(writeBuf));
+	r = coap_packet_append_payload(&request, (uint8_t *)encodedPayload,
+				       sizeof(encodedPayload));
 	if (r < 0) {
 		LOG_ERR("Not able to append payload");
 		goto end;
 	}
 
-	LOG_INF("sending now...");
-	r = send(sock, request.data, request.offset, 0); //TODO add this again
-	LOG_INF("was able to send..");
+	r = send(sock, request.data, request.offset, 0);
 
 end:
 	k_free(data);
