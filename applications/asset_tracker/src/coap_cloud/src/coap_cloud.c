@@ -301,9 +301,7 @@ static int process_obs_coap_reply(void)
 	LOG_INF("parsed coap_header_type");
 
 
-	// if(token_len < 1){
-		// LOG_INF("token was short");
-	// }
+
 	LOG_INF("ID: %d", id);
 	LOG_INF("TYpe: %d", type);
 	LOG_INF("token: %s", token);
@@ -656,7 +654,7 @@ static int c_send(const struct cloud_backend *const backend,
 	// LOG_INF("SENDING SENSOR DATA. MESSAGE: %s\n", msg->buf);
 	// TODO temporary disabled to test observe
 	int err;
-	// err = send_simple_coap_msgs_and_wait_for_reply(msg);
+	err = send_simple_coap_msgs_and_wait_for_reply(msg);
 	return 0; //err;
 }
 
