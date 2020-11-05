@@ -8,6 +8,14 @@
 #include <net/coap_utils.h>
 #include <net/coap.h>
 #include <logging/log.h>
+// #include <lib/cbor.h>
+#include "tinycbor/cbor.h"
+// #include <tinycbor/cbor_mbuf_writer.h> // THIS IS USED ONLY in the example code
+// #include <tinycbor/cbor_mbuf_reader.h> // naming went to shit ...
+#include <tinycbor/cbor_buf_writer.h>
+#include <tinycbor/cbor_buf_reader.h>
+
+
 
 LOG_MODULE_REGISTER(coap_cloud, CONFIG_COAP_CLOUD_LOG_LEVEL);
 
@@ -116,6 +124,107 @@ static int send_simple_coap_request(const struct cloud_msg *const msg)
 	const char * const *p;
 	uint8_t *data;
 	int r;
+
+	/* testing ----*/
+
+        // int some_value = 5;
+        //int64_t some_value = 4;
+
+				const char mystring[] = "hi";
+
+	//uint8_t buf[APP_COAP_MAX_MSG_LEN];
+	//uint8_t buf[16];
+        // unsigned char buf[16];
+				//
+        // LOG_INF("declared buf");
+        // CborEncoder encoder;
+        // LOG_INF("initing encoder");
+        // cbor_encoder_init(&encoder, &buf, 0);
+        // LOG_INF("encoding string");
+				// int err;
+				// err = cbor_encode_text_string(&encoder, mystring, sizeof(mystring));
+				// LOG_INF("error: %d", err);
+				// LOG_INF("Value encoded");
+
+
+  // struct cbor_buf_writer buf_writer;
+	// struct cbor_buf_reader buf_reader;
+	// uint8_t writeBuf[16];
+	// uint8_t readBuf[16];
+	// int valueToEncode = 4;
+	int err;
+
+	struct cbor_buf_writer buf_writer;
+	/*
+	struct cbor_buf_reader {
+    struct cbor_decoder_reader r; // this will be used in cbor_parser_init
+    const uint8_t *buffer;
+  };
+  */
+	struct cbor_buf_reader buf_reader;
+	uint8_t writeBuf[16];
+	uint8_t readBuf[16];
+	int valueToEncode = 4;
+
+  CborParser parser;
+	CborValue value;
+	int result;
+	CborEncoder encoder;
+
+	/* encode */
+  /*
+			void
+		cbor_buf_writer_init(struct cbor_buf_writer *cb, uint8_t *buffer, size_t size)
+		{
+		    cb->ptr = buffer;
+		    cb->end = buffer + size;
+		    cb->enc.bytes_written = 0;
+		    cb->enc.write = cbor_buf_writer;
+		}*/
+	cbor_buf_writer_init(&buf_writer, writeBuf, sizeof(writeBuf));
+
+	/**
+ * Initializes a CborEncoder structure \a encoder by pointing it to buffer \a
+ * buffer of size \a size. The \a flags field is currently unused and must be
+ * zero.
+ */
+	cbor_encoder_init(&encoder, &buf_writer.enc, 0);
+
+	if(cbor_encode_int(&encoder, valueToEncode) != CborNoError){
+		LOG_INF("error encoding int");
+	}
+
+	cbor_buf_reader_init(&buf_reader,writeBuf,sizeof(writeBuf));
+
+	/* decoding */
+	/**
+ * Initializes the CBOR parser for parsing \a size bytes beginning at \a
+ * buffer. Parsing will use flags set in \a flags. The iterator to the first
+ * element is returned in \a it.
+ *
+ * The \a parser structure needs to remain valid throughout the decoding
+ * process. It is not thread-safe to share one CborParser among multiple
+ * threads iterating at the same time, but the object can be copied so multiple
+ * threads can iterate.
+ */
+	/* CborError cbor_parser_init(struct cbor_decoder_reader *d, int flags,
+                                CborParser *parser, CborValue *it)*/
+	// buf_reader is cbor_buf_reader and has attribute r
+	if (cbor_parser_init(&buf_reader.r, 0, &parser, &value) != CborNoError){
+		LOG_INF("failed initialzing parser");
+	}
+
+	if(cbor_value_get_int(&value, &result) != CborNoError){
+		LOG_INF("error getting integer");
+	}
+
+	LOG_INF("it worked. integer is: %d", result);
+
+
+
+
+
+	/* ------- --- */
 
 	data = (uint8_t *)k_malloc(APP_COAP_MAX_MSG_LEN);
 	if (!data) {
