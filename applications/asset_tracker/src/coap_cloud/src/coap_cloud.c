@@ -447,15 +447,23 @@ static int process_obs_coap_reply(void)
 
 
  // create json here
+ char message[APP_COAP_MAX_MSG_LEN];
+ strcpy(message, "{\"appId\":\"LED\",\"data\":{\"color\":\"");
+ strcat(message, hex);
+ strcat(message, "\"},\"messageType\":\"CFG_SET\"}");
+ // "{\"appId\":\"LED\",\"data\":{\"color\":\"" + hex + "\"},\"messageType\":\"CFG_SET\"}"
+
+ LOG_INF("MESSAGE FOR CLOUD:");
+ LOG_INF("%s", message);
 
 
   // trigger cloud event with received data
 	struct cloud_event cloud_evt = {
 		.type = CLOUD_EVT_DATA_RECEIVED,
-		.data.msg.buf = payload,
-		.data.msg.len = payload_len
+		.data.msg.buf = message,
+		.data.msg.len = sizeof(message)
 	};
-	cloud_notify_event(coap_cloud_backend, &cloud_evt, payload);
+	cloud_notify_event(coap_cloud_backend, &cloud_evt, message);
 
 end:
 	k_free(data);
@@ -670,7 +678,7 @@ int coap_cloud_connect(void)
 			return err;
 		}
 		// err = connect_error_translate(err);
-		// err = connection_poll_start();
+		err = connection_poll_start();
 	return err;
 }
 
