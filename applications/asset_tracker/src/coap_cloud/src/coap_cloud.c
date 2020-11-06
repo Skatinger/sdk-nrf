@@ -157,7 +157,6 @@ static int send_simple_coap_request(const struct cloud_msg *const msg)
   } else if(!strcmp("TEMP", appId->valuestring)){
     path = "temp";
 	} else if(!strcmp("AIR_PRESS", appId->valuestring)){
-		LOG_INF("ok, got TEMP");
     path = "air_press";
 	// } else if(!strcmp("BUTTON", appId->valuestring)){
   //   path = "button";
@@ -169,7 +168,6 @@ static int send_simple_coap_request(const struct cloud_msg *const msg)
 
 	value_to_send = atof(data_value->valuestring);
   cJSON_Delete(json_packet);
-	LOG_INF("GOT value to send: %f", value_to_send);
 
   /* encoding payload to cbor */
 	int err;
@@ -309,7 +307,6 @@ static int process_obs_coap_reply(void)
 	uint8_t *data;
 	uint8_t type;
 	uint16_t payload_len;
-	// const uint8_t *payload;
 	uint8_t *payload;
 	uint8_t token_len;
 	int rcvd;
@@ -366,96 +363,31 @@ static int process_obs_coap_reply(void)
 
 	payload = coap_packet_get_payload(&reply, &payload_len);
 
-	LOG_INF("received payload: %s", payload);
-  LOG_INF("payload length: %d", payload_len);
-
-	int i;
-	for (i = 0; i < payload_len; i++)	{
-	    if (i > 0) printf(":");
-	    printf("%02X", payload[i]);
-	}
-	printf("\n");
-
-
-
-
-	/* experiment */
-	struct cbor_buf_writer buf_writer;
+	// now parse payload
 	struct cbor_buf_reader buf_reader;
-	uint8_t writeBuf[5];
-	int valueToEncode = 16711680;
-
   CborParser parser;
 	CborValue value;
 	int result;
-	CborEncoder encoder;
-
-	/* encode */
-	cbor_buf_writer_init(&buf_writer, writeBuf, sizeof(writeBuf));
-	cbor_encoder_init(&encoder, &buf_writer.enc, 0);
-	if(cbor_encode_int(&encoder, valueToEncode) != CborNoError){
-		LOG_INF("error encoding int");
-	}
-  LOG_INF("value to encode: %d", valueToEncode);
-	// LOG_INF("encoded Value: %x", writeBuf);
-	// int i;
-	for (i = 0; i < sizeof(writeBuf); i++)	{
-	    if (i > 0) printf(":");
-	    printf("%02X", writeBuf[i]);
-	}
-	printf("\n");
-
-
-
-
-	// cbor_buf_reader_init(&buf_reader,writeBuf, sizeof(writeBuf));
-	// if (cbor_parser_init(&buf_reader.r, 0, &parser, &value) != CborNoError){
-	// // if (cbor_parser_init(&buf_reader.r, 0, &parser, &value) != CborNoError){
-	// 	LOG_INF("failed initialzing parser");
-	// }
-	// if(cbor_value_get_int(&value, &result) != CborNoError){
-	// 	LOG_INF("error getting integer");
-	// }
-	// LOG_INF("it worked. integer is: %d", result);
-
-
-  // now parse payload
-	CborValue value2;
-	int result2;
 	cbor_buf_reader_init(&buf_reader,payload, payload_len);
-	if (cbor_parser_init(&buf_reader.r, 0, &parser, &value2) != CborNoError){
-	// if (cbor_parser_init(&buf_reader.r, 0, &parser, &value) != CborNoError){
+	if (cbor_parser_init(&buf_reader.r, 0, &parser, &value) != CborNoError){
 		LOG_INF("failed initialzing parser");
 	}
-	if(cbor_value_get_int(&value2, &result2) != CborNoError){
+	if(cbor_value_get_int(&value, &result) != CborNoError){
 		LOG_INF("error getting integer");
 	}
-	LOG_INF("it worked. integer is: %d", result2);
 
-
-
-  // int test = result;
-
-	LOG_INF("INT before: %d", result2);
+  // convert integer to hex, for a color
+	// pad with 0's
 	char hex[20];
-	sprintf(hex, "%06x", result2);
-	LOG_INF("hex: %s", hex);
+	sprintf(hex, "%06x", result);
 
-
-  LOG_INF("HEX COLOR IS NOW: %s", hex);
-	// LOG_INF("received message. payload:  %s", payload);
-
-
- // create json here
+ // create json for cloud update
  char message[APP_COAP_MAX_MSG_LEN];
  strcpy(message, "{\"appId\":\"LED\",\"data\":{\"color\":\"");
  strcat(message, hex);
  strcat(message, "\"},\"messageType\":\"CFG_SET\"}");
- // "{\"appId\":\"LED\",\"data\":{\"color\":\"" + hex + "\"},\"messageType\":\"CFG_SET\"}"
 
- LOG_INF("MESSAGE FOR CLOUD:");
- LOG_INF("%s", message);
-
+ LOG_INF("Message for cloud: %s", message);
 
   // trigger cloud event with received data
 	struct cloud_event cloud_evt = {
@@ -713,10 +645,9 @@ static int c_disconnect(const struct cloud_backend *const backend)
 static int c_send(const struct cloud_backend *const backend,
 		  const struct cloud_msg *const msg)
 {
-	return 0;
-	// int err;
-	// err = send_simple_coap_msgs_and_wait_for_reply(msg);
-	// return err;
+	int err;
+	err = send_simple_coap_msgs_and_wait_for_reply(msg);
+	return err;
 }
 
 static const struct cloud_api coap_cloud_api = {
